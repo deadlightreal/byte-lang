@@ -70,16 +70,16 @@ impl<'a> Tokenizer<'a> {
                                     self.position += 1;
                                     return Token::String(DataString{name: string_name, value: string_value})
                                 } else {
-                                    return Token::Error("Expected ;".to_string());
+                                    return Token::Error(String::from("Expected ;"));
                                 }
                             } else {
-                                return Token::Error("Expected String!!".to_string());                              
+                                return Token::Error(String::from("Expected String!!"));                              
                             }
                         } else {
                             return Token::Error(format!("Expected = after string {}", string_name))
                         }
                     } else {
-                        return Token::Error("Syntax Error".to_string());
+                        return Token::Error(String::from("Syntax Error"));
                     }
                 }
                 "w" => {
@@ -94,13 +94,13 @@ impl<'a> Tokenizer<'a> {
                                 self.position += 1;
                                 return Token::WaitNumber(number);
                             } else {
-                                return Token::Error("Expected ; after wait()".to_string());
+                                return Token::Error(String::from("Expected ; after wait()"));
                             }
                         } else {
-                            return Token::Error("Expected ( After Wait".to_string())
+                            return Token::Error(String::from("Expected ( After Wait"))
                         }
                     } else {
-                        return Token::Error("Syntax Error".to_string());
+                        return Token::Error(String::from("Syntax Error"));
                     }
                 },
                 "p" => {
@@ -122,10 +122,10 @@ impl<'a> Tokenizer<'a> {
                                         self.position += 1;
                                         return Token::PrintlnString(print_string);
                                     } else {
-                                        return Token::Error("Expected ; To Close Line".to_string());
+                                        return Token::Error(String::from("Expected ; To Close Line"));
                                     }
                                 } else {
-                                    return Token::Error("Expected ) on Print Function".to_string())
+                                    return Token::Error(String::from("Expected ) on Print Function"))
                                 }
                             } else {
                                 // Get name of string value from ().
@@ -135,11 +135,11 @@ impl<'a> Tokenizer<'a> {
                                     self.position += 1;
                                     return Token::PrintlnVariable(string_var_name);
                                 } else {
-                                    return Token::Error("Expected ; after print statement!!".to_string());
+                                    return Token::Error(String::from("Expected ; after print statement!!"));
                                 }
                             }
                         } else {
-                            return Token::Error("".to_string());
+                            return Token::Error(String::from(""));
                         }
                     } else if &self.input[self.position..self.position + 5] == "print" {
                         self.position += 5;
@@ -156,10 +156,10 @@ impl<'a> Tokenizer<'a> {
                                         self.position += 1;
                                         return Token::PrintString(print_string);
                                     } else {
-                                        return Token::Error("Expected ; To Close Line".to_string());
+                                        return Token::Error(String::from("Expected ; To Close Line"));
                                     }
                                 } else {
-                                    return Token::Error("Expected ) on Print Function".to_string())
+                                    return Token::Error(String::from("Expected ) on Print Function"))
                                 }
                             } else {
                                 let string_var_name = self.get_value_from_parentheses();
@@ -168,14 +168,14 @@ impl<'a> Tokenizer<'a> {
                                     self.position += 1;
                                     return Token::PrintVariable(string_var_name);
                                 } else {
-                                    return Token::Error("Expected ; after print statement!!".to_string());
+                                    return Token::Error(String::from("Expected ; after print statement!!"));
                                 }
                             }
                         } else {
-                            return Token::Error("Expected ( after print".to_string());
+                            return Token::Error(String::from("Expected ( after print"));
                         }
                     } else {
-                        return Token::Error("Unknown Character".to_string());
+                        return Token::Error(String::from("Unknown Character"));
                     }
                 },
                 "c" => {
@@ -235,10 +235,10 @@ impl<'a> Tokenizer<'a> {
                                 }
                             }
                         } else {
-                            return Token::Error("Expected ( after compare".to_string());
+                            return Token::Error(String::from("Expected ( after compare"));
                         }
                     } else {
-                        return Token::Error("syntax error".to_string());
+                        return Token::Error(String::from("syntax error"));
                     }
                 },
                 "n" => {
@@ -259,13 +259,13 @@ impl<'a> Tokenizer<'a> {
                                 let data_number : DataNumber = DataNumber{value: number_value, name: variable_name};
                                 return Token::Number(data_number);
                             } else {
-                                return Token::Error("Expected ; after number".to_string());
+                                return Token::Error(String::from("Expected ; after number"));
                             }
                         } else {
-                            return Token::Error("Expected = after number".to_string());
+                            return Token::Error(String::from("Expected = after number"));
                         }
                     } else {
-                        return Token::Error("Syntax Error".to_string());
+                        return Token::Error(String::from("Syntax Error"));
                     }
                 },
                 "l" => {
@@ -284,16 +284,16 @@ impl<'a> Tokenizer<'a> {
                                     let loop_content = self.get_content_from_braces();
                                     return Token::Loop(LoopToken{content: loop_content, number: loop_number});
                                 } else {
-                                    return Token::Error("Expected { after loop".to_string());
+                                    return Token::Error(String::from("Expected { after loop"));
                                 }
                             } else {
-                                return Token::Error("Expected ) after loop(number".to_string())
+                                return Token::Error(String::from("Expected ) after loop(number"))
                             }
                         } else {
-                            return Token::Error("Expected ( after loop".to_string());
+                            return Token::Error(String::from("Expected ( after loop"));
                         }
                     } else {
-                        return Token::Error("Syntax Error".to_string());
+                        return Token::Error(String::from("Syntax Error"));
                     }
                 },
                 "\\" => {
@@ -304,12 +304,12 @@ impl<'a> Tokenizer<'a> {
                         self.handle_comment();
                         return Token::Comment;
                     } else {
-                        return Token::Error("Syntax Error".to_string());
+                        return Token::Error(String::from("Syntax Error"));
                     }
                 },
                 _ => {
                     self.position += 1;
-                    return Token::Error("Unknown Character".to_string());
+                    return Token::Error(String::from("Unknown Character"));
                 }
             }
         }
