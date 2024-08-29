@@ -66,12 +66,11 @@ _start:
 
     // Store number of loops made.
     let mut loop_number : u32 = 0;
+    let mut compare_number : u32 = 0;
 
     let mut loops : Vec<Loop_Struct> = Vec::new();
 
-    let mut compare_symbols : Vec<Vec<CompareSymbol>> = Vec::new();
-    
-    let parsed_text = handle_parsing(tokenizer, &mut variables, loop_number, &mut print_strings, &mut compare_symbols, &mut loops);
+    let parsed_text = handle_parsing(tokenizer, &mut variables, loop_number, &mut print_strings,  &mut loops, &mut compare_number);
 
     match parsed_text {
         Ok(text) => write!(writer, "{}", text).expect("error writing to a file"),
@@ -83,38 +82,6 @@ _start:
 
     let mut index = 0;
 
-    let mut symbols_index : usize = 0;
-
-    while symbols_index < compare_symbols.len() {
-        for symbol in compare_symbols[symbols_index].clone() {
-            let symbol_tokenizer = Tokenizer::new(&symbol.function_content);
-            let symbol_type : String = match &symbol.symbol as &str {
-                "==" => String::from("equal"),
-                "!=" => String::from("not_equal"),
-                _ => {
-                    return;
-                }
-            };
-            let parsed = handle_parsing(symbol_tokenizer, &mut variables, loop_number, &mut print_strings, &mut compare_symbols, &mut loops);
-            match parsed {
-                Ok(text) => {
-                    write!(writer,
-r#"{}_{}:
-{}
-
-    bl continue_{}
-"#, symbol_type, symbols_index, text, symbols_index).expect("error writing to file");
-                },
-                Err(err) => {
-                    println!("{:?}", err);
-                    return;
-                }
-            }
-        }
-
-        symbols_index += 1;
-    }
-    
     write!(writer, ".data\n").expect("error writing to a file");
 
     // Create a new_line string that contains \n.
@@ -166,7 +133,7 @@ r#"{}_{}:
     }
 }
 
-fn handle_parsing(mut tokenizer : Tokenizer, variables : &mut HashMap<String, VariableType>, mut loop_number: u32, print_strings : &mut Vec<String>, compare_symbols :&mut  Vec<Vec<CompareSymbol>>, loops : &mut Vec<Loop_Struct>) -> Result<String, String> {
+fn handle_parsing(mut tokenizer : Tokenizer, variables : &mut HashMap<String, VariableType>, mut loop_number: u32, print_strings : &mut Vec<String>, loops : &mut Vec<Loop_Struct>, compare_number: &mut u32) -> Result<String, String> {
     let mut parsed_text = String::new();
 
     loop {
@@ -180,17 +147,12 @@ fn handle_parsing(mut tokenizer : Tokenizer, variables : &mut HashMap<String, Va
 
 "#);
             },
-            /*Token::CompareSymbol(symbol) => {
-                            */
-//r#"    bl continue_{}
-
-//continue_{}:
-
-//"#, 0, 0));
             Token::Compare(compare_args) => {
-                let inx = compare_symbols.len();
 
-                compare_symbols.push(Vec::new());
+                let current_number = compare_number.clone();
+                *compare_number += 1;
+
+                println!("{:?}", compare_args);
                 let mut index = 0;
                 for arg in compare_args.compare_types {
                     match arg {
@@ -219,7 +181,7 @@ r#"    adrp X3, {}@PAGE
 r#"    cmp W1, W2
 
 "#));
-                for symbol in compare_args.symbols {
+                for symbol in compare_args.symbols.clone() {
                     let mut shortcut : String = String::new();
                     let mut compare_type : String = String::new();
 
@@ -239,66 +201,50 @@ r#"    cmp W1, W2
 r#"    b.{} {}_{}
 
 "#
-, shortcut, compare_type, inx));
-                    if let Some(last) = compare_symbols.last_mut() {
-                        last.push(symbol);
-                    } else {
-                        return Err(String::from("Error getting last vector of compare symbols."));
-                    }
+, shortcut, compare_type, current_number));
                 };
+
+                for symbol in compare_args.symbols {
+                    let new_tokenizer = Tokenizer::new(&symbol.function_content as &str);
+                    let symbol_type : String = match &symbol.symbol as &str {
+                        "==" => String::from("equal"),
+                        "!=" => String::from("not_equal"),
+                        _ => {
+                            return Err(String::from("unknown compare symbol"));
+                        }
+                    };
+                    let parsed_compare_text = handle_parsing(new_tokenizer, variables, loop_number, print_strings, loops, compare_number);
+                    match parsed_compare_text {
+                        Ok(content) => {
+                            parsed_text.push_str(&format!(
+r#"{}_{}:
+{}
+
+    bl continue_{}
+"#, symbol_type, current_number, content, current_number));
+                        },
+                        Err(err) => {return Err(err);}
+                    };
+                }
 
                 parsed_text.push_str(&format!(
 r#"    bl continue_{}
 
 continue_{}:
 
-"#, inx, inx));
+"#, current_number, current_number));
 
-                println!("compare symbols : {:?}", compare_symbols);
             },
             Token::Number(number) => {
                 // Insert into variables hashmap the number variable.
                 variables.insert(number.name.clone(), VariableType::Number(number));
             },
-            /*Token::LoopEnd() => {
-                // End the loop if index reached the limit number and branch to loop_end.
-                parsed_text.push_str(&format!(
-r#"     adrp X13, l_{}_index@PAGE   
-    add X13, X13, l_{}_index@PAGEOFF
-    ldr W11, [X13]
-
-    adrp X14, l_{}_limit@PAGE
-    add X14, X14, l_{}_limit@PAGEOFF
-    ldr W12, [X14]
-
-    cmp W12, W11
-    b.eq l_{}_end
-
-    add W11, W11, #1
-    str W11, [X13]
-    bl l_{}
-
-l_{}_end:
-
-"#, loop_number, loop_number, loop_number, loop_number, loop_number, loop_number, loop_number));
-                loop_number += 1;
-            },
-            Token::LoopStart(number) => {
-                loops.push(Loop_Struct{limit: number as u32});
-                // branch to the loop and initialize limit and index.
-                parsed_text.push_str(&format!( 
-r#"    bl l_{}
-
-l_{}:
-
-"#, loop_number, loop_number));
-            }, */
             Token::Loop(loop_token) => {
                 let num = loop_number;
                 loop_number += 1;
                 loops.push(Loop_Struct{limit: loop_token.number as u32});
                 let new_tokenizer = Tokenizer::new(&loop_token.content as &str);
-                let compiled_content = handle_parsing(new_tokenizer, variables, loop_number, print_strings, compare_symbols, loops);
+                let compiled_content = handle_parsing(new_tokenizer, variables, loop_number, print_strings, loops, compare_number);
                 match compiled_content {
                     Ok(content) => {parsed_text.push_str(&format!(
 r#"    bl l_{}
