@@ -2,69 +2,77 @@
 .align 2
 _start:
 
-    bl l_0
+    mov W1, #20
 
-l_0:
+    mov W2, #20
 
-    bl l_1
+    cmp W1, W2
 
-l_1:
+    b.eq equal_0
 
+    b.ne not_equal_0
+
+equal_0:
     mov X0, #1
     adrp X1, print_string_0@PAGE
     add X1, X1, print_string_0@PAGEOFF
-    mov X2, 7
+    mov X2, 8
     mov X16, #4
     svc #0x80
 
+    mov W1, #10
 
+    mov W2, #10
 
-    adrp X13, l_1_index@PAGE   
-    add X13, X13, l_1_index@PAGEOFF
-    ldr W11, [X13]
+    cmp W1, W2
 
-    adrp X14, l_1_limit@PAGE
-    add X14, X14, l_1_limit@PAGEOFF
-    ldr W12, [X14]
+    b.eq equal_1
 
-    cmp W12, W11
-    b.eq l_1_end
+    b.ne not_equal_1
 
-    add W11, W11, #1
-    str W11, [X13]
-    bl l_1
-
-l_1_end:
-    mov W11, #1
-    str W11, [X13]
-
+equal_1:
     mov X0, #1
     adrp X1, print_string_1@PAGE
     add X1, X1, print_string_1@PAGEOFF
-    mov X2, 7
+    mov X2, 8
     mov X16, #4
     svc #0x80
 
 
 
-    adrp X13, l_0_index@PAGE   
-    add X13, X13, l_0_index@PAGEOFF
-    ldr W11, [X13]
+    bl continue_1
+not_equal_1:
+    mov X0, #1
+    adrp X1, print_string_2@PAGE
+    add X1, X1, print_string_2@PAGEOFF
+    mov X2, 9
+    mov X16, #4
+    svc #0x80
 
-    adrp X14, l_0_limit@PAGE
-    add X14, X14, l_0_limit@PAGEOFF
-    ldr W12, [X14]
 
-    cmp W12, W11
-    b.eq l_0_end
 
-    add W11, W11, #1
-    str W11, [X13]
-    bl l_0
+    bl continue_1
+    bl continue_1
 
-l_0_end:
-    mov W11, #1
-    str W11, [X13]
+continue_1:
+
+
+
+    bl continue_0
+not_equal_0:
+    mov X0, #1
+    adrp X1, print_string_3@PAGE
+    add X1, X1, print_string_3@PAGEOFF
+    mov X2, 9
+    mov X16, #4
+    svc #0x80
+
+
+
+    bl continue_0
+    bl continue_0
+
+continue_0:
 
     mov X0, #0
     mov X16, #1
@@ -72,9 +80,7 @@ l_0_end:
 
 .data
 new_line: .ascii "\n"
-l_0_limit: .word 5
-l_0_index: .word 1
-l_1_limit: .word 10
-l_1_index: .word 1
-print_string_0: .ascii "loop 2\n"
-print_string_1: .ascii "loop 1\n"
+print_string_0: .ascii "20 = 20\n"
+print_string_1: .ascii "10 = 10\n"
+print_string_2: .ascii "10 != 10\n"
+print_string_3: .ascii "20 != 20\n"
