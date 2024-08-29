@@ -1,12 +1,12 @@
-number ten = 10; // Creates new number variable.
+number ten = 10;
 number five = 5;
-string printstring = "print"; // Creates new string variable.
+string printstring = "print";
 
 compare(ten, 10)
 .== {
-    compare(five, 5) // Compares 2 numbers.
+    compare(five, 5)
     .== {
-        loop(5) { // loops x amount of times.
+        loop(5) {
 	    println("five = 5");
     	}
     }
@@ -18,4 +18,4 @@ compare(ten, 10)
     println("ten != 10");
 };
 
-term; // Terminates the app.
+term;

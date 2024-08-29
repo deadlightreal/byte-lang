@@ -22,7 +22,8 @@ continue_0:
     svc #0x80
 
 equal_0:
-    mov W1, #4
+    adr X3, five
+    ldr W1, [X3]
 
     mov W2, #5
 
@@ -42,7 +43,7 @@ continue_1:
 not_equal_0:
     mov X0, #1
     adr X1, print_string_0
-    mov X2, 7
+    mov X2, 10
     mov X16, #4
     svc #0x80
 
@@ -50,11 +51,25 @@ not_equal_0:
 
     bl continue_0
 equal_1:
+    mov X12, #5
+    mov X11, #1
+    bl l_0
+
+l_0:
+
     mov X0, #1
     adr X1, print_string_1
-    mov X2, 6
+    mov X2, 9
     mov X16, #4
     svc #0x80
+
+    cmp X12, X11
+    b.eq l_0_end
+
+    add X11, X11, #1
+    bl l_0
+
+l_0_end:
 
 
 
@@ -62,7 +77,7 @@ equal_1:
 not_equal_1:
     mov X0, #1
     adr X1, print_string_2
-    mov X2, 7
+    mov X2, 10
     mov X16, #4
     svc #0x80
 
@@ -70,10 +85,11 @@ not_equal_1:
 
     bl continue_1
 new_line: .ascii "\n"
-print_string_0: .ascii "second\n"
-print_string_1: .ascii "5 = 5\n"
-print_string_2: .ascii "5 != 5\n"
-printstring: .asciz "i love coding in rust"
+print_string_0: .ascii "ten != 10\n"
+print_string_1: .ascii "five = 5\n"
+print_string_2: .ascii "five != 5\n"
+five: .word 5
+printstring: .asciz "print"
 printstring_end:
-printstring_length: .word 21 
+printstring_length: .word 5 
 ten: .word 10
