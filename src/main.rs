@@ -8,7 +8,7 @@ mod compile_asm;
 mod datatypes;
 
 use compile_asm::compile_asm;
-use datatypes::{DataString, Token, CompareSymbol, CompareType, Tokenizer, DataNumber, VariableType};
+use datatypes::{Token, CompareSymbol, CompareType, Tokenizer, VariableType, Loop_Struct};
 
 fn main() {
     let command = std::env::args().nth(1).expect("Please Provide a command");
@@ -67,9 +67,11 @@ _start:
     // Store number of loops made.
     let mut loop_number : u32 = 0;
 
+    let mut loops : Vec<Loop_Struct> = Vec::new();
+
     let mut compare_symbols : Vec<Vec<CompareSymbol>> = Vec::new();
     
-    let parsed_text = handle_parsing(tokenizer, &mut variables, loop_number, &mut print_strings, &mut compare_symbols);
+    let parsed_text = handle_parsing(tokenizer, &mut variables, loop_number, &mut print_strings, &mut compare_symbols, &mut loops);
 
     match parsed_text {
         Ok(text) => write!(writer, "{}", text).expect("error writing to a file"),
@@ -93,7 +95,7 @@ _start:
                     return;
                 }
             };
-            let parsed = handle_parsing(symbol_tokenizer, &mut variables, loop_number, &mut print_strings, &mut compare_symbols);
+            let parsed = handle_parsing(symbol_tokenizer, &mut variables, loop_number, &mut print_strings, &mut compare_symbols, &mut loops);
             match parsed {
                 Ok(text) => {
                     write!(writer,
@@ -117,6 +119,12 @@ r#"{}_{}:
 
     // Create a new_line string that contains \n.
     write!(writer, "new_line: .ascii \"\\n\"\n").expect("Error Writing to a file");
+
+    let mut loop_index = 0;
+    for loop_struct in loops {
+        write!(writer, "l_{}_limit: .word {}\nl_{}_index: .word 1\n", loop_index, loop_struct.limit, loop_index).expect("error writing to a file");
+        loop_index += 1;
+    }
     
     // Insert print strings into data section.
     for print_string in print_strings {
@@ -158,7 +166,7 @@ r#"{}_{}:
     }
 }
 
-fn handle_parsing(mut tokenizer : Tokenizer, variables : &mut HashMap<String, VariableType>, mut loop_number: u32, print_strings : &mut Vec<String>, compare_symbols :&mut  Vec<Vec<CompareSymbol>>) -> Result<String, String> {
+fn handle_parsing(mut tokenizer : Tokenizer, variables : &mut HashMap<String, VariableType>, mut loop_number: u32, print_strings : &mut Vec<String>, compare_symbols :&mut  Vec<Vec<CompareSymbol>>, loops : &mut Vec<Loop_Struct>) -> Result<String, String> {
     let mut parsed_text = String::new();
 
     loop {
@@ -255,27 +263,35 @@ continue_{}:
             Token::LoopEnd() => {
                 // End the loop if index reached the limit number and branch to loop_end.
                 parsed_text.push_str(&format!(
-r#"    cmp X12, X11
+r#"     adrp X13, l_{}_index@PAGE   
+    add X13, X13, l_{}_index@PAGEOFF
+    ldr W11, [X13]
+
+    adrp X14, l_{}_limit@PAGE
+    add X14, X14, l_{}_limit@PAGEOFF
+    ldr W12, [X14]
+
+    cmp W12, W11
     b.eq l_{}_end
 
-    add X11, X11, #1
+    add W11, W11, #1
+    str W11, [X13]
     bl l_{}
 
 l_{}_end:
 
-"#, loop_number, loop_number, loop_number));
+"#, loop_number, loop_number, loop_number, loop_number, loop_number, loop_number, loop_number));
                 loop_number += 1;
             },
             Token::LoopStart(number) => {
+                loops.push(Loop_Struct{limit: number as u32});
                 // branch to the loop and initialize limit and index.
                 parsed_text.push_str(&format!( 
-r#"    mov X12, #{}
-    mov X11, #1
-    bl l_{}
+r#"    bl l_{}
 
 l_{}:
 
-"#, number, loop_number, loop_number));
+"#, loop_number, loop_number));
             },
             Token::WaitNumber(number) => {
                 let seconds = number.floor();

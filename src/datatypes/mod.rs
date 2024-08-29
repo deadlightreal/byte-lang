@@ -7,6 +7,7 @@ pub mod variable_type;
 pub mod compare_type;
 pub mod compare_symbol;
 pub mod compare;
+pub mod loop_struct;
 
 pub use {
     data_string::DataString,
@@ -18,4 +19,5 @@ pub use {
     compare_type::CompareType,
     compare_symbol::CompareSymbol,
     compare::Compare,
+    loop_struct::Loop_Struct,
 };
