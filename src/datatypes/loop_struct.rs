@@ -1,3 +1,3 @@
-pub struct Loop_Struct {
+pub struct LoopStruct {
     pub limit : u32,
 }
