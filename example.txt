@@ -1,0 +1,19 @@
+number ten = 10;
+number five = 5;
+string printstring = "print";
+
+compare(ten, 10)
+.== {
+    compare(five, 5)
+    .== {
+	println("five = 5");
+    }
+    .!= {
+	println("five != 5");
+    };
+}
+.!= {
+    println("ten != 10");
+};
+
+term;
