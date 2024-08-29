@@ -20,6 +20,6 @@ pub use {
     compare_type::CompareType,
     compare_symbol::CompareSymbol,
     compare::Compare,
-    loop_struct::Loop_Struct,
-    loop_token::Loop_Token,
+    loop_struct::LoopStruct,
+    loop_token::LoopToken,
 };

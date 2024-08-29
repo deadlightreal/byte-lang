@@ -8,7 +8,7 @@ mod compile_asm;
 mod datatypes;
 
 use compile_asm::compile_asm;
-use datatypes::{Token, CompareSymbol, CompareType, Tokenizer, VariableType, Loop_Struct};
+use datatypes::{Token, CompareType, Tokenizer, VariableType, LoopStruct};
 
 fn main() {
     let command = std::env::args().nth(1).expect("Please Provide a command");
@@ -56,7 +56,7 @@ _start:
 "#).expect("Error Writing File");
 
     // Init tokenizer.
-    let mut tokenizer = Tokenizer::new(&content);
+    let tokenizer = Tokenizer::new(&content);
 
     // Store strings used to print.
     let mut print_strings : Vec<String> = Vec::new();
@@ -65,10 +65,10 @@ _start:
     let mut variables : HashMap<String, VariableType> = HashMap::new();
 
     // Store number of loops made.
-    let mut loop_number : u32 = 0;
+    let loop_number : u32 = 0;
     let mut compare_number : u32 = 0;
 
-    let mut loops : Vec<Loop_Struct> = Vec::new();
+    let mut loops : Vec<LoopStruct> = Vec::new();
 
     let parsed_text = handle_parsing(tokenizer, &mut variables, loop_number, &mut print_strings,  &mut loops, &mut compare_number);
 
@@ -108,7 +108,6 @@ _start:
             },
             VariableType::Number(number) => {
                 write!(writer, "{}: .word {}\n", number.name, number.value).expect("error writing to file");
-                println!("number variable {:?}", number);
             }
         }
     }
@@ -133,7 +132,7 @@ _start:
     }
 }
 
-fn handle_parsing(mut tokenizer : Tokenizer, variables : &mut HashMap<String, VariableType>, mut loop_number: u32, print_strings : &mut Vec<String>, loops : &mut Vec<Loop_Struct>, compare_number: &mut u32) -> Result<String, String> {
+fn handle_parsing(mut tokenizer : Tokenizer, variables : &mut HashMap<String, VariableType>, mut loop_number: u32, print_strings : &mut Vec<String>, loops : &mut Vec<LoopStruct>, compare_number: &mut u32) -> Result<String, String> {
     let mut parsed_text = String::new();
 
     loop {
@@ -152,7 +151,6 @@ fn handle_parsing(mut tokenizer : Tokenizer, variables : &mut HashMap<String, Va
                 let current_number = compare_number.clone();
                 *compare_number += 1;
 
-                println!("{:?}", compare_args);
                 let mut index = 0;
                 for arg in compare_args.compare_types {
                     match arg {
@@ -182,8 +180,8 @@ r#"    cmp W1, W2
 
 "#));
                 for symbol in compare_args.symbols.clone() {
-                    let mut shortcut : String = String::new();
-                    let mut compare_type : String = String::new();
+                    let shortcut : String;
+                    let compare_type : String;
 
                     match &symbol.symbol as &str {
                         "==" => {
@@ -242,7 +240,7 @@ continue_{}:
             Token::Loop(loop_token) => {
                 let num = loop_number;
                 loop_number += 1;
-                loops.push(Loop_Struct{limit: loop_token.number as u32});
+                loops.push(LoopStruct{limit: loop_token.number as u32});
                 let new_tokenizer = Tokenizer::new(&loop_token.content as &str);
                 let compiled_content = handle_parsing(new_tokenizer, variables, loop_number, print_strings, loops, compare_number);
                 match compiled_content {
@@ -278,7 +276,7 @@ l_{}_end:
             },
             Token::WaitNumber(number) => {
                 let seconds = number.floor();
-                let nanoseconds = (number - seconds) * 1000000000.0;
+                //let nanoseconds = (number - seconds) * 1000000000.0;
                 // For future devs: please add a feature to wait .. of nanoseconds.
                 
                 // Wait .. seconds and then continue to execute code.

@@ -1,4 +1,4 @@
-use super::{Token, DataString, PrintString, DataNumber, VariableType, Loop_Token, Compare, CompareType, CompareSymbol};
+use super::{Token, DataString, PrintString, DataNumber, VariableType, LoopToken, Compare, CompareType, CompareSymbol};
 use std::num::ParseFloatError;
 use std::collections::HashMap;
 
@@ -282,7 +282,7 @@ impl<'a> Tokenizer<'a> {
                                 if self.current_char() == '{' {
                                     self.position += 1;
                                     let loop_content = self.get_content_from_braces();
-                                    return Token::Loop(Loop_Token{content: loop_content, number: loop_number});
+                                    return Token::Loop(LoopToken{content: loop_content, number: loop_number});
                                 } else {
                                     return Token::Error("Expected { after loop".to_string());
                                 }
@@ -498,6 +498,7 @@ impl<'a> Tokenizer<'a> {
             if self.current_char() == ')' {
                 self.position += 1;
             } else {
+
             }
         } else {
             println!("Expected Arguments After Function Name!!")
