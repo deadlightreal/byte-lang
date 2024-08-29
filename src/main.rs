@@ -113,6 +113,8 @@ r#"{}_{}:
         symbols_index += 1;
     }
     
+    write!(writer, ".data\n").expect("error writing to a file");
+
     // Create a new_line string that contains \n.
     write!(writer, "new_line: .ascii \"\\n\"\n").expect("Error Writing to a file");
     
@@ -192,10 +194,11 @@ r#"    mov W{}, #{}
                         },
                         CompareType::VariableNumber(variable) => {
                             parsed_text.push_str(&format!(
-r#"    adr X3, {}
+r#"    adrp X3, {}@PAGE
+    add X3, X3, {}@PAGEOFF
     ldr W{}, [X3]
 
-"#, variable.name, 1 + index));
+"#, variable.name, variable.name, 1 + index));
                         },
                         CompareType::None() => {
                             return Err(String::from("Compare type was not given"));
@@ -295,12 +298,13 @@ r#"    mov x8, {}
                 // Call print instruction with the print string and add \n to it.
                 parsed_text.push_str(&format!(
 r#"    mov X0, #1
-    adr X1, {}
+    adrp X1, {}@PAGE
+    add X1, X1, {}@PAGEOFF
     mov X2, {}
     mov X16, #4
     svc #0x80
 
-"#, format!("print_string_{}", print_strings.len()), print_string.length+1
+"#, format!("print_string_{}", print_strings.len()), format!("print_string_{}", print_strings.len()), print_string.length+1
                 ));
                 print_strings.push(print_string.value);
             },
@@ -308,12 +312,13 @@ r#"    mov X0, #1
                 // Same as printlnString just don't add \n to print_string.
                 parsed_text.push_str(&format!(
 r#"    mov X0, #1
-    adr X1, {}
+    adrp X1, {}@PAGE
+    add X1, X1, {}@PAGEOFF
     mov X2, {}
     mov X16, #4
     svc #0x80
 
-"#, format!("print_string_{}", print_strings.len()), print_string.length
+"#, format!("print_string_{}", print_strings.len()), format!("print_string_{}", print_strings.len()), print_string.length
                 ));
                 print_strings.push(print_string.value);
             },
@@ -329,13 +334,15 @@ r#"    mov X0, #1
                             VariableType::String(_) => {
                                 parsed_text.push_str(&format!( 
 r#"    mov X0, #1
-    adr X1, {}
-    adr X3, {}
+    adrp X1, {}@PAGE
+    add X1, X1, {}@PAGEOFF
+    adrp X3, {}@PAGE
+    add X3, X3, {}@PAGEOFF
     sub X2, X3, X1
     mov X16, #4
     svc #0x80
 
-"#, name, format!("{}_end", name)));
+"#, name, name, format!("{}_end", name), format!("{}_end", name)));
                             },
                             _ => {
                                 return Err(String::from("variable is not a string!!"));
@@ -360,19 +367,22 @@ r#"    mov X0, #1
                             VariableType::String(_) => {
                                 parsed_text.push_str(&format!(
 r#"    mov X0, #1
-    adr X1, {}
-    adr X3, {}
+    adrp X1, {}@PAGE
+    add X1, X1, {}@PAGEOFF
+    adrp X3, {}@PAGE
+    add X3, X3, {}@PAGEOFF
     sub X2, X3, X1
     mov X16, #4
     svc #0x80
 
     mov X0, #1
-    adr X1, new_line
+    adrp X1, new_line@PAGE
+    add X1, X1, new_line@PAGEOFF
     mov X2, 1
     mov X16, #4
     svc #0x80
 
-"#, name, format!("{}_end", name)));                            
+"#, name, name, format!("{}_end", name), format!("{}_end", name)));                            
                             },
                             // Return if not string.
                             _ => {
