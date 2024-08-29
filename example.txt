@@ -7,6 +7,7 @@ compare(ten, 10)
     compare(five, 5)
     .== {
         loop(5) {
+	    println(printstring);
 	    println("five = 5");
     	}
     }
@@ -17,5 +18,8 @@ compare(ten, 10)
 .!= {
     println("ten != 10");
 };
+
+print("hello print");
+print(printstring);
 
 term;

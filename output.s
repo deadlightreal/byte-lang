@@ -2,7 +2,8 @@
 .align 2
 _start:
 
-    adr X3, ten
+    adrp X3, ten@PAGE
+    add X3, X3, ten@PAGEOFF
     ldr W1, [X3]
 
     mov W2, #10
@@ -17,12 +18,29 @@ _start:
 
 continue_0:
 
+    mov X0, #1
+    adrp X1, print_string_0@PAGE
+    add X1, X1, print_string_0@PAGEOFF
+    mov X2, 11
+    mov X16, #4
+    svc #0x80
+
+    mov X0, #1
+    adrp X1, printstring@PAGE
+    add X1, X1, printstring@PAGEOFF
+    adrp X3, printstring_end@PAGE
+    add X3, X3, printstring_end@PAGEOFF
+    sub X2, X3, X1
+    mov X16, #4
+    svc #0x80
+
     mov X0, #0
     mov X16, #1
     svc #0x80
 
 equal_0:
-    adr X3, five
+    adrp X3, five@PAGE
+    add X3, X3, five@PAGEOFF
     ldr W1, [X3]
 
     mov W2, #5
@@ -42,7 +60,8 @@ continue_1:
     bl continue_0
 not_equal_0:
     mov X0, #1
-    adr X1, print_string_0
+    adrp X1, print_string_1@PAGE
+    add X1, X1, print_string_1@PAGEOFF
     mov X2, 10
     mov X16, #4
     svc #0x80
@@ -58,7 +77,24 @@ equal_1:
 l_0:
 
     mov X0, #1
-    adr X1, print_string_1
+    adrp X1, printstring@PAGE
+    add X1, X1, printstring@PAGEOFF
+    adrp X3, printstring_end@PAGE
+    add X3, X3, printstring_end@PAGEOFF
+    sub X2, X3, X1
+    mov X16, #4
+    svc #0x80
+
+    mov X0, #1
+    adrp X1, new_line@PAGE
+    add X1, X1, new_line@PAGEOFF
+    mov X2, 1
+    mov X16, #4
+    svc #0x80
+
+    mov X0, #1
+    adrp X1, print_string_2@PAGE
+    add X1, X1, print_string_2@PAGEOFF
     mov X2, 9
     mov X16, #4
     svc #0x80
@@ -76,7 +112,8 @@ l_0_end:
     bl continue_1
 not_equal_1:
     mov X0, #1
-    adr X1, print_string_2
+    adrp X1, print_string_3@PAGE
+    add X1, X1, print_string_3@PAGEOFF
     mov X2, 10
     mov X16, #4
     svc #0x80
@@ -84,12 +121,14 @@ not_equal_1:
 
 
     bl continue_1
+.data
 new_line: .ascii "\n"
-print_string_0: .ascii "ten != 10\n"
-print_string_1: .ascii "five = 5\n"
-print_string_2: .ascii "five != 5\n"
-five: .word 5
+print_string_0: .ascii "hello print"
+print_string_1: .ascii "ten != 10\n"
+print_string_2: .ascii "five = 5\n"
+print_string_3: .ascii "five != 5\n"
+ten: .word 10
 printstring: .asciz "print"
 printstring_end:
 printstring_length: .word 5 
-ten: .word 10
+five: .word 5
