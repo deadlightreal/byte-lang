@@ -8,6 +8,7 @@ pub mod compare_type;
 pub mod compare_symbol;
 pub mod compare;
 pub mod loop_struct;
+pub mod loop_token;
 
 pub use {
     data_string::DataString,
@@ -20,4 +21,5 @@ pub use {
     compare_symbol::CompareSymbol,
     compare::Compare,
     loop_struct::Loop_Struct,
+    loop_token::Loop_Token,
 };

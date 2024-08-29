@@ -260,7 +260,7 @@ continue_{}:
                 // Insert into variables hashmap the number variable.
                 variables.insert(number.name.clone(), VariableType::Number(number));
             },
-            Token::LoopEnd() => {
+            /*Token::LoopEnd() => {
                 // End the loop if index reached the limit number and branch to loop_end.
                 parsed_text.push_str(&format!(
 r#"     adrp X13, l_{}_index@PAGE   
@@ -292,6 +292,43 @@ r#"    bl l_{}
 l_{}:
 
 "#, loop_number, loop_number));
+            }, */
+            Token::Loop(loop_token) => {
+                let num = loop_number;
+                loop_number += 1;
+                loops.push(Loop_Struct{limit: loop_token.number as u32});
+                let new_tokenizer = Tokenizer::new(&loop_token.content as &str);
+                let compiled_content = handle_parsing(new_tokenizer, variables, loop_number, print_strings, compare_symbols, loops);
+                match compiled_content {
+                    Ok(content) => {parsed_text.push_str(&format!(
+r#"    bl l_{}
+
+l_{}:
+
+{}
+
+    adrp X13, l_{}_index@PAGE   
+    add X13, X13, l_{}_index@PAGEOFF
+    ldr W11, [X13]
+
+    adrp X14, l_{}_limit@PAGE
+    add X14, X14, l_{}_limit@PAGEOFF
+    ldr W12, [X14]
+
+    cmp W12, W11
+    b.eq l_{}_end
+
+    add W11, W11, #1
+    str W11, [X13]
+    bl l_{}
+
+l_{}_end:
+    mov W11, #1
+    str W11, [X13]
+
+"#, num, num, content, num, num, num, num, num, num, num));},
+                    Err(err) => {return Err(err)},
+                }
             },
             Token::WaitNumber(number) => {
                 let seconds = number.floor();

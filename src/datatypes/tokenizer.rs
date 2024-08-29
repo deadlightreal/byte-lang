@@ -1,4 +1,4 @@
-use super::{Token, DataString, PrintString, DataNumber, VariableType, Compare, CompareType, CompareSymbol};
+use super::{Token, DataString, PrintString, DataNumber, VariableType, Loop_Token, Compare, CompareType, CompareSymbol};
 use std::num::ParseFloatError;
 use std::collections::HashMap;
 
@@ -9,13 +9,12 @@ use std::collections::HashMap;
 pub struct Tokenizer<'a> {
     input: &'a str,
     position: usize,
-    inloop: bool,
 }
 
 impl<'a> Tokenizer<'a> {
     // Initialize the tokenizer.
     pub fn new(input: &'a str) -> Self {
-        Self {input, position: 0, inloop: false}
+        Self {input, position: 0}
     }
 
     // Get next token.
@@ -275,15 +274,15 @@ impl<'a> Tokenizer<'a> {
                         self.position += 4;
                         if self.current_char() == '(' {
                             self.position += 1;
-                            let number : i32 = self.get_number_from_loop();
+                            let loop_number : i32 = self.get_number_from_loop();
 
                             if self.current_char() == ')' {
                                 self.position += 1;
                                 self.skip_whitespace();
                                 if self.current_char() == '{' {
                                     self.position += 1;
-                                    self.inloop = true;
-                                    return Token::LoopStart(number);
+                                    let loop_content = self.get_content_from_braces();
+                                    return Token::Loop(Loop_Token{content: loop_content, number: loop_number});
                                 } else {
                                     return Token::Error("Expected { after loop".to_string());
                                 }
@@ -295,15 +294,6 @@ impl<'a> Tokenizer<'a> {
                         }
                     } else {
                         return Token::Error("Syntax Error".to_string());
-                    }
-                },
-                "}" => {
-                    // Close loop if it is in loop.
-                    if self.inloop {
-                        self.position += 1;
-                        return Token::LoopEnd();
-                    } else {
-                        return Token::Error("Why the heck did you type }?".to_string());
                     }
                 },
                 "\\" => {
