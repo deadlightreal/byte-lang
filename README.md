@@ -24,7 +24,7 @@ Since Byte Lang is in its early stages, the installation process involves clonin
    cd byte-lang
    ```
 
-3 **Run your first program**:
+3. **Run your first program**:
    ```bash
    cargo run (command)
    ```
@@ -39,6 +39,7 @@ Since Byte Lang is in its early stages, the installation process involves clonin
 * number name = value - Creates a new number variable.
 * loop(number) {} - Loops x amount of times.
 * compare(number1, number2).=={} .!={}; - Compares two numbers and does things based on the result.
+* term - Terminates the program.
 
 ### Contributing
 **As an open-source project, Byte Lang welcomes contributions from the community. To contribute:**
