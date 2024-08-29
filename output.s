@@ -70,8 +70,6 @@ not_equal_0:
 
     bl continue_0
 equal_1:
-    mov X12, #5
-    mov X11, #1
     bl l_0
 
 l_0:
@@ -99,10 +97,19 @@ l_0:
     mov X16, #4
     svc #0x80
 
-    cmp X12, X11
+     adrp X13, l_0_index@PAGE   
+    add X13, X13, l_0_index@PAGEOFF
+    ldr W11, [X13]
+
+    adrp X14, l_0_limit@PAGE
+    add X14, X14, l_0_limit@PAGEOFF
+    ldr W12, [X14]
+
+    cmp W12, W11
     b.eq l_0_end
 
-    add X11, X11, #1
+    add W11, W11, #1
+    str W11, [X13]
     bl l_0
 
 l_0_end:
@@ -123,12 +130,14 @@ not_equal_1:
     bl continue_1
 .data
 new_line: .ascii "\n"
+l_0_limit: .word 5
+l_0_index: .word 1
 print_string_0: .ascii "hello print"
 print_string_1: .ascii "ten != 10\n"
 print_string_2: .ascii "five = 5\n"
 print_string_3: .ascii "five != 5\n"
-ten: .word 10
 printstring: .asciz "print"
 printstring_end:
 printstring_length: .word 5 
 five: .word 5
+ten: .word 10
