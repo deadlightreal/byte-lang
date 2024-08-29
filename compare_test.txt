@@ -1,15 +1,8 @@
-compare(20, 20)
-.== {
-    println("20 = 20");
-    compare(10, 10)
-    .== {
-        println("10 = 10");
-    }
-    .!= {
-        println("10 != 10");
-    };
+compare(30, 20)
+.>= {
+    println("greater equal");
 }
-.!= {
-    println("20 != 20");
+.< {
+    println("less than");
 };
 term;

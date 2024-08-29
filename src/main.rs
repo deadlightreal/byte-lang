@@ -192,6 +192,22 @@ r#"    cmp W1, W2
                             shortcut = String::from("ne");
                             compare_type = String::from("not_equal");
                         },
+                        ">=" => {
+                            shortcut = String::from("ge");
+                            compare_type = String::from("greater_equal");
+                        },
+                        "<=" => {
+                            shortcut = String::from("le");
+                            compare_type = String::from("less_equal");
+                        },
+                        ">" => {
+                            shortcut = String::from("gt");
+                            compare_type = String::from("greater_than");
+                        },
+                        "<" => {
+                            shortcut = String::from("lt");
+                            compare_type = String::from("less_than");
+                        },
                         _ => {return Err(String::from("Invalid compare syntax."))},
                     }
 
@@ -207,6 +223,10 @@ r#"    b.{} {}_{}
                     let symbol_type : String = match &symbol.symbol as &str {
                         "==" => String::from("equal"),
                         "!=" => String::from("not_equal"),
+                        ">=" => String::from("greater_equal"),
+                        "<=" => String::from("less_equal"),
+                        ">" => String::from("greater_than"),
+                        "<" => String::from("less_than"),
                         _ => {
                             return Err(String::from("unknown compare symbol"));
                         }
