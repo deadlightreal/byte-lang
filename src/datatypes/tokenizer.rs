@@ -201,7 +201,7 @@ impl<'a> Tokenizer<'a> {
                                                     self.position += 1;
                                                     let syntax = &self.input[self.position..self.position + 2];
                                                     match syntax {
-                                                        "==" | "!=" => {
+                                                        "==" | "!=" | ">=" | "<=" => {
                                                             self.position += 2;
                                                             self.skip_whitespace();
                                                             if self.current_char() == '{' {
@@ -213,7 +213,24 @@ impl<'a> Tokenizer<'a> {
                                                                 return Token::Error(String::from("expected { after .XX"))
                                                             }
                                                         },
-                                                        _ => {return Token::Error(String::from("Invalid Comparing Syntax"));}
+                                                        _ => {
+                                                            let one_char_syntax = &self.input[self.position..self.position + 1];
+                                                            match one_char_syntax {
+                                                                ">" | "<" => {
+                                                                    self.position += 2;
+                                                                    self.skip_whitespace();
+                                                                    if self.current_char() == '{' {
+                                                                        self.position += 1;
+                                                                        let func_content = self.get_content_from_braces();
+                                                                        let compare_symbol = CompareSymbol{symbol : one_char_syntax.to_string(), function_content: func_content};
+                                                                        compare_symbols.push(compare_symbol);
+                                                                    } else {
+                                                                        return Token::Error(String::from("expected { after .XX"))
+                                                                    }
+                                                                }
+                                                                _ => {return Token::Error(String::from("Invalid Comparing Syntax"));}  
+                                                            };
+                                                        }
                                                     }
                                                 } else {
                                                     return Token::Error(String::from("syntax error"));
