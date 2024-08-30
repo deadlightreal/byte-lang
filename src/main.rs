@@ -85,8 +85,8 @@ _start:
     for func in functions.values() {
         write!(writer, 
 r#"f_{}:
-    {}
-    
+
+{}
     adrp X10, fn_end@PAGE
     add X10, X10, fn_end@PAGEOFF
     ldr X11, [X10]
@@ -163,6 +163,7 @@ r#"    adr X10, f_{}_end
     bl f_{}
 
 f_{}_end:
+
 "#, name, name, name));
             },
             Token::Function(func) => {
@@ -252,6 +253,11 @@ r#"    b.{} {}_{}
 , shortcut, compare_type, current_number));
                 };
 
+                parsed_text.push_str(&format!(
+r#"    bl continue_{}
+"#
+, current_number));
+
                 for symbol in compare_args.symbols {
                     let new_tokenizer = Tokenizer::new(&symbol.function_content as &str);
                     let symbol_type : String = match &symbol.symbol as &str {
@@ -280,11 +286,11 @@ r#"{}_{}:
                 }
 
                 parsed_text.push_str(&format!(
-r#"    bl continue_{}
+r#"
 
 continue_{}:
 
-"#, current_number, current_number));
+"#, current_number));
 
             },
             Token::Number(number) => {
@@ -321,6 +327,7 @@ l_{}:
     bl l_{}
 
 l_{}_end:
+
     mov W11, #1
     str W11, [X13]
 
