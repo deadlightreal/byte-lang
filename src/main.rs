@@ -87,7 +87,10 @@ _start:
 r#"f_{}:
     {}
     
-    ret
+    adrp X10, fn_end@PAGE
+    add X10, X10, fn_end@PAGEOFF
+    ldr X11, [X10]
+    br X11
 
 "#, func.name, func.content).expect("error writing to a file");
     }
@@ -97,7 +100,7 @@ r#"f_{}:
     write!(writer, ".data\n").expect("error writing to a file");
 
     // Create a new_line string that contains \n.
-    write!(writer, "new_line: .ascii \"\\n\"\n").expect("Error Writing to a file");
+    write!(writer, "new_line: .ascii \"\\n\"\nfn_end: .quad _start\n").expect("Error Writing to a file");
 
     let mut loop_index = 0;
     for loop_struct in loops {
@@ -153,8 +156,14 @@ fn handle_parsing(mut tokenizer : Tokenizer, variables : &mut HashMap<String, Va
         match token {
             Token::CallFunction(name) => {
                 parsed_text.push_str(&format!(
-r#"    bl f_{}
-"#, name));
+r#"    adr X10, f_{}_end
+    adrp X11, fn_end@PAGE
+    add X11, X11, fn_end@PAGEOFF
+    str X10, [X11]
+    bl f_{}
+
+f_{}_end:
+"#, name, name, name));
             },
             Token::Function(func) => {
                 let func_tokenizer = Tokenizer::new(&func.content);

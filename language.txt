@@ -1,7 +1,9 @@
-loop(5) {
-    loop(10) {
-    	println("loop 2");
-    }
-    println("loop 1");
+fn test() {
+    println("in test function");
 }
+
+call test();
+
+println("outside test function");
+
 term;
