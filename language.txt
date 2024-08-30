@@ -1,9 +1,9 @@
-fn test() {
-    println("in test function");
+compare(10, 5)
+.== {
+    println("equal");
 }
-
-call test();
-
-println("outside test function");
+.!= {
+    println("not equal");
+};
 
 term;
