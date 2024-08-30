@@ -1,4 +1,4 @@
-use super::{Token, DataString, PrintString, DataNumber, VariableType, LoopToken, Compare, CompareType, CompareSymbol};
+use super::{Token, DataString, PrintString, FunctionStruct, DataNumber, VariableType, LoopToken, Compare, CompareType, CompareSymbol};
 use std::num::ParseFloatError;
 use std::collections::HashMap;
 
@@ -18,7 +18,7 @@ impl<'a> Tokenizer<'a> {
     }
 
     // Get next token.
-    pub fn next_token(&mut self, variables : HashMap<String, VariableType>) -> Token {
+    pub fn next_token(&mut self, variables : HashMap<String, VariableType>, functions: HashMap<String, FunctionStruct>) -> Token {
         self.skip_whitespace();
 
         if self.position >= self.input.len() {
@@ -31,6 +31,26 @@ impl<'a> Tokenizer<'a> {
             println!("{}%", rounded_percentage);
 
             match self.current_char().to_string().as_str() {
+                "f" => {
+                    if &self.input[self.position..self.position + 2] == "fn" {
+                        self.position += 2;
+                        self.skip_whitespace();
+                        let fn_name = self.get_function_name();
+                        self.handle_function_args();
+                        self.skip_whitespace();
+                        if self.current_char() == '{' {
+                            {
+                                self.position += 1;
+                                let fn_content = self.get_content_from_braces();
+                                return Token::Function(FunctionStruct{name: fn_name, content: fn_content});
+                            }
+                        } else {
+                            return Token::Error(String::from("Expected { after fn"));
+                        }
+                    } else {
+                        return Token::Error(String::from("Syntax Error"));
+                    }
+                },
                 "t" => {
                     if &self.input[self.position..self.position + 4] == "term" {
                         self.position += 4;
@@ -179,7 +199,29 @@ impl<'a> Tokenizer<'a> {
                     }
                 },
                 "c" => {
-                    if &self.input[self.position..self.position + 7] == "compare" {
+                    if &self.input[self.position..self.position + 4] == "call" {
+                        self.position += 4;
+                        self.skip_whitespace();
+                        let name = self.get_function_call_name();
+
+                        if functions.get(&name).is_none() {
+                            return Token::Error(String::from("Function does not exist!"));
+                        }
+
+                        if self.current_char() != '(' {
+                            return Token::Error(String::from("Expected ( after calling function"));
+                        }
+                        self.position += 1;
+                        // Add args later.
+                        self.position += 1;
+                        if self.current_char() != ';' {
+                            return Token::Error(String::from("Expected ; after calling function"));
+                        }
+
+                        self.position += 1;
+
+                        return Token::CallFunction(name);
+                    } else if &self.input[self.position..self.position + 7] == "compare" {
                         self.position += 7;
                         if self.current_char() == '(' {
                             self.position += 1;
@@ -325,8 +367,7 @@ impl<'a> Tokenizer<'a> {
                     }
                 },
                 _ => {
-                    self.position += 1;
-                    return Token::Error(String::from("Unknown Character"));
+                    return Token::Error(format!("Unknown Character {}", self.current_char()));
                 }
             }
         }
@@ -642,5 +683,21 @@ impl<'a> Tokenizer<'a> {
     // Get current char of input.
     pub fn current_char(&self) -> char {
         self.input[self.position..].chars().next().unwrap()
+    }
+
+    // Get function call name - call function(); - function
+    pub fn get_function_call_name(&mut self) -> String {
+        let mut res : String = String::new();
+
+        while self.position < self.input.len() {
+            if self.current_char() == '(' {
+                break;
+            } else {
+                res.push(self.current_char());
+                self.position += 1;
+            }
+        }
+
+        return res;
     }
  }

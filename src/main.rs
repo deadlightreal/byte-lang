@@ -8,7 +8,7 @@ mod compile_asm;
 mod datatypes;
 
 use compile_asm::compile_asm;
-use datatypes::{Token, CompareType, Tokenizer, VariableType, LoopStruct};
+use datatypes::{Token, CompareType, FunctionStruct, Tokenizer, VariableType, LoopStruct};
 
 fn main() {
     let command = std::env::args().nth(1).expect("Please Provide a command");
@@ -64,13 +64,15 @@ _start:
     // Variables like numbers and strings.
     let mut variables : HashMap<String, VariableType> = HashMap::new();
 
+    let mut functions : HashMap<String, FunctionStruct> = HashMap::new();
+
     // Store number of loops made.
     let loop_number : u32 = 0;
     let mut compare_number : u32 = 0;
 
     let mut loops : Vec<LoopStruct> = Vec::new();
 
-    let parsed_text = handle_parsing(tokenizer, &mut variables, loop_number, &mut print_strings,  &mut loops, &mut compare_number);
+    let parsed_text = handle_parsing(tokenizer, &mut variables, loop_number, &mut print_strings,  &mut loops, &mut compare_number, &mut functions);
 
     match parsed_text {
         Ok(text) => write!(writer, "{}", text).expect("error writing to a file"),
@@ -78,6 +80,16 @@ _start:
             println!("{}", err);
             return;
         }
+    }
+
+    for func in functions.values() {
+        write!(writer, 
+r#"f_{}:
+    {}
+    
+    ret
+
+"#, func.name, func.content).expect("error writing to a file");
     }
 
     let mut index = 0;
@@ -132,13 +144,26 @@ _start:
     }
 }
 
-fn handle_parsing(mut tokenizer : Tokenizer, variables : &mut HashMap<String, VariableType>, mut loop_number: u32, print_strings : &mut Vec<String>, loops : &mut Vec<LoopStruct>, compare_number: &mut u32) -> Result<String, String> {
+fn handle_parsing(mut tokenizer : Tokenizer, variables : &mut HashMap<String, VariableType>, mut loop_number: u32, print_strings : &mut Vec<String>, loops : &mut Vec<LoopStruct>, compare_number: &mut u32, functions : &mut HashMap<String, FunctionStruct>) -> Result<String, String> {
     let mut parsed_text = String::new();
 
     loop {
-        let token : Token = tokenizer.next_token(variables.clone());
+        let token : Token = tokenizer.next_token(variables.clone(), functions.clone());
 
         match token {
+            Token::CallFunction(name) => {
+                parsed_text.push_str(&format!(
+r#"    bl f_{}
+"#, name));
+            },
+            Token::Function(func) => {
+                let func_tokenizer = Tokenizer::new(&func.content);
+                let parsed_asm = handle_parsing(func_tokenizer, variables, loop_number, print_strings, loops, compare_number, functions);
+                match parsed_asm {
+                    Ok(text) => {functions.insert(func.name.clone(), FunctionStruct{content: text, name: func.name})},
+                    Err(err) => {return Err(err)},
+                };
+            },
             Token::Terminate() => {
                 parsed_text.push_str(r#"    mov X0, #0
     mov X16, #1
@@ -231,7 +256,7 @@ r#"    b.{} {}_{}
                             return Err(String::from("unknown compare symbol"));
                         }
                     };
-                    let parsed_compare_text = handle_parsing(new_tokenizer, variables, loop_number, print_strings, loops, compare_number);
+                    let parsed_compare_text = handle_parsing(new_tokenizer, variables, loop_number, print_strings, loops, compare_number, functions);
                     match parsed_compare_text {
                         Ok(content) => {
                             parsed_text.push_str(&format!(
@@ -262,7 +287,7 @@ continue_{}:
                 loop_number += 1;
                 loops.push(LoopStruct{limit: loop_token.number as u32});
                 let new_tokenizer = Tokenizer::new(&loop_token.content as &str);
-                let compiled_content = handle_parsing(new_tokenizer, variables, loop_number, print_strings, loops, compare_number);
+                let compiled_content = handle_parsing(new_tokenizer, variables, loop_number, print_strings, loops, compare_number, functions);
                 match compiled_content {
                     Ok(content) => {parsed_text.push_str(&format!(
 r#"    bl l_{}
@@ -351,7 +376,7 @@ r#"    mov X0, #1
                             VariableType::String(_) => {
                                 parsed_text.push_str(&format!( 
 r#"    mov X0, #1
-    adrp X1, {}@PAGE
+ ====================   adrp X1, {}@PAGE
     add X1, X1, {}@PAGEOFF
     adrp X3, {}@PAGE
     add X3, X3, {}@PAGEOFF

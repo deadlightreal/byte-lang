@@ -9,6 +9,7 @@ pub mod compare_symbol;
 pub mod compare;
 pub mod loop_struct;
 pub mod loop_token;
+pub mod function_struct;
 
 pub use {
     data_string::DataString,
@@ -22,4 +23,5 @@ pub use {
     compare::Compare,
     loop_struct::LoopStruct,
     loop_token::LoopToken,
+    function_struct::FunctionStruct,
 };

@@ -1,0 +1,9 @@
+fn test() {
+    println("hello world");
+}
+
+loop(5) {
+    call test();
+}
+
+term;
