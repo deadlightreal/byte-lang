@@ -1,0 +1,7 @@
+\\ comment \\
+
+string test = "";
+number num = 10;
+bool boolean = false;
+
+term;
