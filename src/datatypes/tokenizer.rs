@@ -24,220 +24,192 @@ impl<'a> Tokenizer<'a> {
         if self.position >= self.input.len() {
             return Token::EOF;
         } else {
+            let token = self.get_token();
+
             // Percentage compiled.
             let percentage = (self.position as f64 / self.input.len() as f64) * 1000.0;
             let rounded_percentage = percentage.round() / 10.0;
 
             println!("{}%", rounded_percentage);
 
-            match self.current_char().to_string().as_str() {
-                "f" => {
-                    if &self.input[self.position..self.position + 2] == "fn" {
-                        self.position += 2;
-                        self.skip_whitespace();
-                        let fn_name = self.get_function_name();
-                        self.handle_function_args();
-                        self.skip_whitespace();
-                        if self.current_char() == '{' {
-                            {
-                                self.position += 1;
-                                let fn_content = self.get_content_from_braces();
-                                return Token::Function(FunctionStruct{name: fn_name, content: fn_content});
-                            }
-                        } else {
-                            return Token::Error(String::from("Expected { after fn"));
-                        }
-                    } else {
-                        return Token::Error(String::from("Syntax Error"));
-                    }
-                },
-                "t" => {
-                    if &self.input[self.position..self.position + 4] == "term" {
-                        self.position += 4;
-                        if self.current_char() == ';' {
+            match token {
+                -1 => {return Token::EOF;}
+                0 => {
+                    self.skip_whitespace();
+                    let fn_name = self.get_function_name();
+                    self.handle_function_args();
+                    self.skip_whitespace();
+                    if self.current_char() == '{' {
+                        {
                             self.position += 1;
-                            return Token::Terminate();
-                        } else {
-                            return Token::Error(String::from("Expected ; after term"));
+                            let fn_content = self.get_content_from_braces();
+                            return Token::Function(FunctionStruct{name: fn_name, content: fn_content});
                         }
                     } else {
-                        return Token::Error(String::from("Syntax Error"))
+                        return Token::Error(String::from("Expected { after fn"));
                     }
                 },
-                "b" => {
-                    if &self.input[self.position..self.position + 4] == "bool" {
-                        self.position += 4;
-                        if self.current_char().is_whitespace() == false {
-                            return Token::Error(String::from("Expected Whitespace"));
-                        }
-
+                1 => {
+                    if self.current_char() == ';' {
                         self.position += 1;
-                        let bool_name = self.get_text();
-                        self.skip_whitespace();
-                        if self.current_char() != '=' {
-                            return Token::Error(String::from("Expected = after bool"));
-                        }
-
-                        self.position += 1;
-                        self.skip_whitespace();
-
-                        let bool_value : String = self.get_boolean_value();
-
-                        self.skip_whitespace();
-
-                        if self.current_char() != ';' {
-                            return Token::Error(String::from("Expected ;"));
-                        }
-
-                        self.position += 1;
-
-                        let boolean_value : bool = match &bool_value as &str {
-                            "false" => false,
-                            "true" => true,
-                            _ => {return Token::Error(String::from("Invalid bool value"))}
-                        };
-
-                        return Token::DataBoolean(DataBoolean{name: bool_name, value: boolean_value});
+                        return Token::Terminate();
+                    } else {
+                        return Token::Error(String::from("Expected ; after term"));
                     }
-                    return Token::Error(String::from("Syntax Error"));
                 },
-                "s" => {
+                2 => {
+                    if self.current_char().is_whitespace() == false {
+                        return Token::Error(String::from("Expected Whitespace"));
+                    }
+
+                    self.position += 1;
+                    let bool_name = self.get_text();
+                    self.skip_whitespace();
+                    if self.current_char() != '=' {
+                        return Token::Error(String::from("Expected = after bool"));
+                    }
+
+                    self.position += 1;
+                    self.skip_whitespace();
+
+                    let bool_value : String = self.get_boolean_value();
+
+                    self.skip_whitespace();
+
+                    if self.current_char() != ';' {
+                        return Token::Error(String::from("Expected ;"));
+                    }
+
+                    self.position += 1;
+
+                    let boolean_value : bool = match &bool_value as &str {
+                        "false" => false,
+                        "true" => true,
+                        _ => {return Token::Error(String::from("Invalid bool value"))}
+                    };
+
+                    return Token::DataBoolean(DataBoolean{name: bool_name, value: boolean_value});
+                },
+                3 => {
                     // String variable
-                    if &self.input[self.position..self.position + 6] == "string" {
-                        self.position += 6;
+                    self.skip_whitespace();
+
+                    let string_name = self.get_text();
+
+                    self.skip_whitespace();
+
+                    if self.current_char() == '=' {
+                        self.position += 1;
                         self.skip_whitespace();
 
-                        let string_name = self.get_text();
-
-                        self.skip_whitespace();
-
-                        if self.current_char() == '=' {
+                        if self.current_char() == '"' {
                             self.position += 1;
+
+                            // Get init value from string.
+                            let string_value : String = self.get_string_value();
+
                             self.skip_whitespace();
-
-                            if self.current_char() == '"' {
-                                self.position += 1;
-
-                                // Get init value from string.
-                                let string_value : String = self.get_string_value();
-
-                                self.skip_whitespace();
-
-                                if self.current_char() == ';' {
-                                    self.position += 1;
-                                    return Token::String(DataString{name: string_name, value: string_value})
-                                } else {
-                                    return Token::Error(String::from("Expected ;"));
-                                }
-                            } else {
-                                return Token::Error(String::from("Expected String!!"));                              
-                            }
-                        } else {
-                            return Token::Error(format!("Expected = after string {}", string_name))
-                        }
-                    } else {
-                        return Token::Error(String::from("Syntax Error"));
-                    }
-                }
-                "w" => {
-                    // Wait set amount of time
-                    if &self.input[self.position..self.position + 4] == "wait" {
-                        self.position += 4;
-                        if self.current_char() == '(' {
-                            self.position += 1;
-                            let number = self.get_number_from_wait().expect("Did you use a number at wait?");
 
                             if self.current_char() == ';' {
                                 self.position += 1;
-                                return Token::WaitNumber(number);
+                                return Token::String(DataString{name: string_name, value: string_value})
                             } else {
-                                return Token::Error(String::from("Expected ; after wait()"));
+                                return Token::Error(String::from("Expected ;"));
                             }
                         } else {
-                            return Token::Error(String::from("Expected ( After Wait"))
+                            return Token::Error(String::from("Expected String!!"));                              
                         }
                     } else {
-                        return Token::Error(String::from("Syntax Error"));
+                        return Token::Error(format!("Expected = after string {}", string_name))
+                    }
+                }
+                4 => {
+                    // Wait set amount of time
+                    if self.current_char() == '(' {
+                        self.position += 1;
+                        let number = self.get_number_from_wait().expect("Did you use a number at wait?");
+
+                        if self.current_char() == ';' {
+                            self.position += 1;
+                            return Token::WaitNumber(number);
+                        } else {
+                            return Token::Error(String::from("Expected ; after wait()"));
+                        }
+                    } else {
+                        return Token::Error(String::from("Expected ( After Wait"))
                     }
                 },
-                "p" => {
-                    if &self.input[self.position..self.position + 7] == "println" {
-                        self.position += 7;
-                        if self.current_char() == '(' {
+                5 => {
+                    if self.current_char() == '(' {
+                        self.position += 1;
+                        if self.current_char() == '"' {
                             self.position += 1;
-                            if self.current_char() == '"' {
-                                self.position += 1;
 
-                                let mut print_string = self.get_print_properties();
+                            let mut print_string = self.get_print_properties();
                                 
-                                // Add newline to print string.
-                                print_string.value.push_str("\\n");
+                            // Add newline to print string.
+                            print_string.value.push_str("\\n");
 
-                                if self.current_char() == ')' {
-                                    self.position += 1;
-                                    if self.current_char() == ';' {
-                                        self.position += 1;
-                                        return Token::PrintlnString(print_string);
-                                    } else {
-                                        return Token::Error(String::from("Expected ; To Close Line"));
-                                    }
-                                } else {
-                                    return Token::Error(String::from("Expected ) on Print Function"))
-                                }
-                            } else {
-                                // Get name of string value from ().
-                                let string_var_name = self.get_value_from_parentheses();
-
-                                if self.current_char() == ';' {
-                                    self.position += 1;
-                                    return Token::PrintlnVariable(string_var_name);
-                                } else {
-                                    return Token::Error(String::from("Expected ; after print statement!!"));
-                                }
-                            }
-                        } else {
-                            return Token::Error(String::from(""));
-                        }
-                    } else if &self.input[self.position..self.position + 5] == "print" {
-                        self.position += 5;
-                        if self.current_char() == '(' {
-                            self.position += 1;
-                            if self.current_char() == '"' {
+                            if self.current_char() == ')' {
                                 self.position += 1;
-
-                                let print_string = self.get_print_properties();
-    
-                                if self.current_char() == ')' {
-                                    self.position += 1;
-                                    if self.current_char() == ';' {
-                                        self.position += 1;
-                                        return Token::PrintString(print_string);
-                                    } else {
-                                        return Token::Error(String::from("Expected ; To Close Line"));
-                                    }
-                                } else {
-                                    return Token::Error(String::from("Expected ) on Print Function"))
-                                }
-                            } else {
-                                let string_var_name = self.get_value_from_parentheses();
-
                                 if self.current_char() == ';' {
                                     self.position += 1;
-                                    return Token::PrintVariable(string_var_name);
+                                    return Token::PrintlnString(print_string);
                                 } else {
-                                    return Token::Error(String::from("Expected ; after print statement!!"));
+                                    return Token::Error(String::from("Expected ; To Close Line"));
                                 }
+                            } else {
+                                return Token::Error(String::from("Expected ) on Print Function"))
                             }
                         } else {
-                            return Token::Error(String::from("Expected ( after print"));
+                            // Get name of string value from ().
+                            let string_var_name = self.get_value_from_parentheses();
+
+                            if self.current_char() == ';' {
+                                self.position += 1;
+                                return Token::PrintlnVariable(string_var_name);
+                            } else {
+                                return Token::Error(String::from("Expected ; after print statement!!"));
+                            }
                         }
                     } else {
-                        return Token::Error(String::from("Unknown Character"));
+                        return Token::Error(String::from("expected ( after println"));
                     }
                 },
-                "c" => {
-                    if &self.input[self.position..self.position + 4] == "call" {
-                        self.position += 4;
+                6 => {
+                    if self.current_char() == '(' {
+                        self.position += 1;
+                        if self.current_char() == '"' {
+                            self.position += 1;
+
+                            let print_string = self.get_print_properties();
+    
+                            if self.current_char() == ')' {
+                                self.position += 1;
+                                if self.current_char() == ';' {
+                                    self.position += 1;
+                                    return Token::PrintString(print_string);
+                                } else {
+                                    return Token::Error(String::from("Expected ; To Close Line"));
+                                }
+                            } else {
+                                return Token::Error(String::from("Expected ) on Print Function"))                                
+                            }
+                        } else {
+                            let string_var_name = self.get_value_from_parentheses();
+
+                            if self.current_char() == ';' {
+                                self.position += 1;
+                                return Token::PrintVariable(string_var_name);
+                            } else {
+                                return Token::Error(String::from("Expected ; after print statement!!"));
+                            }
+                        }
+                    } else {
+                        return Token::Error(String::from("Expected ( after print"));
+                    }
+                },
+                7 => {
                         self.skip_whitespace();
                         let name = self.get_function_call_name();
 
@@ -258,8 +230,8 @@ impl<'a> Tokenizer<'a> {
                         self.position += 1;
 
                         return Token::CallFunction(name);
-                    } else if &self.input[self.position..self.position + 7] == "compare" {
-                        self.position += 7;
+                },
+                8 => {
                         if self.current_char() == '(' {
                             self.position += 1;
                             // Get both inputs from compare(input1, input2);.
@@ -333,14 +305,9 @@ impl<'a> Tokenizer<'a> {
                         } else {
                             return Token::Error(String::from("Expected ( after compare"));
                         }
-                    } else {
-                        return Token::Error(String::from("syntax error"));
-                    }
-                },
-                "n" => {
+                    },
+                9 => {
                     // Creating number variable.
-                    if &self.input[self.position..self.position + 6] == "number" {
-                        self.position += 6;
                         self.skip_whitespace();
                         let variable_name = self.get_text();
                         self.skip_whitespace();
@@ -360,14 +327,9 @@ impl<'a> Tokenizer<'a> {
                         } else {
                             return Token::Error(String::from("Expected = after number"));
                         }
-                    } else {
-                        return Token::Error(String::from("Syntax Error"));
-                    }
-                },
-                "l" => {
+                    },
+                10 => {
                     // Loop fixed amount of times.
-                    if &self.input[self.position..self.position + 4] == "loop" {
-                        self.position += 4;
                         if self.current_char() == '(' {
                             self.position += 1;
                             let loop_number : i32 = self.get_number_from_loop();
@@ -388,26 +350,37 @@ impl<'a> Tokenizer<'a> {
                         } else {
                             return Token::Error(String::from("Expected ( after loop"));
                         }
-                    } else {
-                        return Token::Error(String::from("Syntax Error"));
-                    }
                 },
-                "\\" => {
+                11 => {
                     // Skip text if it is a comment.
-                    self.position += 1;
-                    if self.current_char() == '\\' {
-                        self.position += 1;
                         self.handle_comment();
                         return Token::Comment;
-                    } else {
-                        return Token::Error(String::from("Syntax Error"));
-                    }
                 },
                 _ => {
                     return Token::Error(format!("Unknown Character {}", self.current_char()));
                 }
             }
         }
+    }
+
+    pub fn get_token(&mut self) -> i8 {
+        let tokens : HashMap<&str, i8> = HashMap::from([("fn", 0), ("term", 1), ("bool", 2), ("string", 3), ("wait", 4), ("println", 5), ("print", 6), ("call", 7), ("compare", 8), ("number", 9), ("loop", 10), ("\\\\", 11)]);
+
+        let mut res : String = String::new();
+
+        while self.position < self.input.len() {
+            res.push(self.current_char());
+            self.position += 1;
+            let token = tokens.get(&res as &str);
+            match token {
+                Some(token) => {
+                    return *token;
+                },
+                None => {}
+            };
+        };
+
+        return -1;
     }
 
     pub fn get_boolean_value(&mut self) -> String {

@@ -9,4 +9,8 @@ _start:
 .data
 new_line: .ascii "\n"
 fn_end: .quad _start
-boolean: .byte 1
+test: .asciz ""
+test_end:
+test_length: .word 0 
+num: .word 10
+boolean: .byte 0
