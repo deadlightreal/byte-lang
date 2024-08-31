@@ -43,7 +43,6 @@ Since Byte Lang is in its early stages, the installation process involves clonin
 * term - Terminates the program.
 * wait(number) - waits .. number of seconds.
 * fn [name]() {} - creates a function.
-* call [fn name]; - calls a function.
 
 ### Contributing
 **As an open-source project, Byte Lang welcomes contributions from the community. To contribute:**
