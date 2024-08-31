@@ -11,6 +11,12 @@ pub struct Tokenizer<'a> {
     position: usize,
 }
 
+pub enum GetTokenReturn {
+    Instruction(i8),
+    Variable(VariableType),
+    Function(FunctionStruct)
+}
+
 impl<'a> Tokenizer<'a> {
     // Initialize the tokenizer.
     pub fn new(input: &'a str) -> Self {
@@ -24,7 +30,7 @@ impl<'a> Tokenizer<'a> {
         if self.position >= self.input.len() {
             return Token::EOF;
         } else {
-            let token = self.get_token();
+            let token_return = self.get_token(&variables, &functions);
 
             // Percentage compiled.
             let percentage = (self.position as f64 / self.input.len() as f64) * 1000.0;
@@ -32,355 +38,372 @@ impl<'a> Tokenizer<'a> {
 
             println!("{}%", rounded_percentage);
 
-            match token {
-                -1 => {return Token::EOF;}
-                0 => {
-                    self.skip_whitespace();
-                    let fn_name = self.get_function_name();
-                    self.handle_function_args();
-                    self.skip_whitespace();
-                    if self.current_char() == '{' {
-                        {
+            match token_return {
+                GetTokenReturn::Instruction(token) => { 
+                    match token {
+                        -1 => {return Token::EOF;}
+                        0 => {
+                            self.skip_whitespace();
+                            let fn_name = self.get_function_name();
+                            self.handle_function_args();
+                            self.skip_whitespace();
+                            if self.current_char() == '{' {
+                                self.position += 1;
+                                let fn_content = self.get_content_from_braces();
+                                return Token::Function(FunctionStruct{name: fn_name, content: fn_content});
+                            } else {
+                                return Token::Error(String::from("Expected { after fn"));
+                            }
+                        },
+                        1 => {
+                            if self.current_char() == ';' {
+                                self.position += 1;
+                                return Token::Terminate();
+                            } else {
+                                return Token::Error(String::from("Expected ; after term"));
+                            }
+                        },
+                        2 => {
+                            if self.current_char().is_whitespace() == false {
+                                return Token::Error(String::from("Expected Whitespace"));
+                            }
+
                             self.position += 1;
-                            let fn_content = self.get_content_from_braces();
-                            return Token::Function(FunctionStruct{name: fn_name, content: fn_content});
-                        }
-                    } else {
-                        return Token::Error(String::from("Expected { after fn"));
-                    }
-                },
-                1 => {
-                    if self.current_char() == ';' {
-                        self.position += 1;
-                        return Token::Terminate();
-                    } else {
-                        return Token::Error(String::from("Expected ; after term"));
-                    }
-                },
-                2 => {
-                    if self.current_char().is_whitespace() == false {
-                        return Token::Error(String::from("Expected Whitespace"));
-                    }
+                            let bool_name = self.get_text();
+                            self.skip_whitespace();
+                            if self.current_char() != '=' {
+                                return Token::Error(String::from("Expected = after bool"));
+                            }
 
-                    self.position += 1;
-                    let bool_name = self.get_text();
-                    self.skip_whitespace();
-                    if self.current_char() != '=' {
-                        return Token::Error(String::from("Expected = after bool"));
-                    }
-
-                    self.position += 1;
-                    self.skip_whitespace();
-
-                    let bool_value : String = self.get_boolean_value();
-
-                    self.skip_whitespace();
-
-                    if self.current_char() != ';' {
-                        return Token::Error(String::from("Expected ;"));
-                    }
-
-                    self.position += 1;
-
-                    let boolean_value : bool = match &bool_value as &str {
-                        "false" => false,
-                        "true" => true,
-                        _ => {return Token::Error(String::from("Invalid bool value"))}
-                    };
-
-                    return Token::DataBoolean(DataBoolean{name: bool_name, value: boolean_value});
-                },
-                3 => {
-                    // String variable
-                    self.skip_whitespace();
-
-                    let string_name = self.get_text();
-
-                    self.skip_whitespace();
-
-                    if self.current_char() == '=' {
-                        self.position += 1;
-                        self.skip_whitespace();
-
-                        if self.current_char() == '"' {
                             self.position += 1;
+                            self.skip_whitespace();
 
-                            // Get init value from string.
-                            let string_value : String = self.get_string_value();
+                            let bool_value : String = self.get_boolean_value();
 
                             self.skip_whitespace();
 
-                            if self.current_char() == ';' {
-                                self.position += 1;
-                                return Token::String(DataString{name: string_name, value: string_value})
-                            } else {
+                            if self.current_char() != ';' {
                                 return Token::Error(String::from("Expected ;"));
                             }
-                        } else {
-                            return Token::Error(String::from("Expected String!!"));                              
-                        }
-                    } else {
-                        return Token::Error(format!("Expected = after string {}", string_name))
-                    }
-                }
-                4 => {
-                    // Wait set amount of time
-                    if self.current_char() == '(' {
-                        self.position += 1;
-                        let number = self.get_number_from_wait().expect("Did you use a number at wait?");
 
-                        if self.current_char() == ';' {
-                            self.position += 1;
-                            return Token::WaitNumber(number);
-                        } else {
-                            return Token::Error(String::from("Expected ; after wait()"));
-                        }
-                    } else {
-                        return Token::Error(String::from("Expected ( After Wait"))
-                    }
-                },
-                5 => {
-                    if self.current_char() == '(' {
-                        self.position += 1;
-                        if self.current_char() == '"' {
                             self.position += 1;
 
-                            let mut print_string = self.get_print_properties();
-                                
-                            // Add newline to print string.
-                            print_string.value.push_str("\\n");
+                            let boolean_value : bool = match &bool_value as &str {
+                                "false" => false,
+                                "true" => true,
+                                _ => {return Token::Error(String::from("Invalid bool value"))}
+                            };
 
-                            if self.current_char() == ')' {
-                                self.position += 1;
-                                if self.current_char() == ';' {
-                                    self.position += 1;
-                                    return Token::PrintlnString(print_string);
-                                } else {
-                                    return Token::Error(String::from("Expected ; To Close Line"));
-                                }
-                            } else {
-                                return Token::Error(String::from("Expected ) on Print Function"))
-                            }
-                        } else {
-                            // Get name of string value from ().
-                            let string_var_name = self.get_value_from_parentheses();
-
-                            if self.current_char() == ';' {
-                                self.position += 1;
-                                return Token::PrintlnVariable(string_var_name);
-                            } else {
-                                return Token::Error(String::from("Expected ; after print statement!!"));
-                            }
-                        }
-                    } else {
-                        return Token::Error(String::from("expected ( after println"));
-                    }
-                },
-                6 => {
-                    if self.current_char() == '(' {
-                        self.position += 1;
-                        if self.current_char() == '"' {
-                            self.position += 1;
-
-                            let print_string = self.get_print_properties();
-    
-                            if self.current_char() == ')' {
-                                self.position += 1;
-                                if self.current_char() == ';' {
-                                    self.position += 1;
-                                    return Token::PrintString(print_string);
-                                } else {
-                                    return Token::Error(String::from("Expected ; To Close Line"));
-                                }
-                            } else {
-                                return Token::Error(String::from("Expected ) on Print Function"))                                
-                            }
-                        } else {
-                            let string_var_name = self.get_value_from_parentheses();
-
-                            if self.current_char() == ';' {
-                                self.position += 1;
-                                return Token::PrintVariable(string_var_name);
-                            } else {
-                                return Token::Error(String::from("Expected ; after print statement!!"));
-                            }
-                        }
-                    } else {
-                        return Token::Error(String::from("Expected ( after print"));
-                    }
-                },
-                7 => {
-                        self.skip_whitespace();
-                        let name = self.get_function_call_name();
-
-                        if functions.get(&name).is_none() {
-                            return Token::Error(String::from("Function does not exist!"));
-                        }
-
-                        if self.current_char() != '(' {
-                            return Token::Error(String::from("Expected ( after calling function"));
-                        }
-                        self.position += 1;
-                        // Add args later.
-                        self.position += 1;
-                        if self.current_char() != ';' {
-                            return Token::Error(String::from("Expected ; after calling function"));
-                        }
-
-                        self.position += 1;
-
-                        return Token::CallFunction(name);
-                },
-                8 => {
-                        if self.current_char() == '(' {
-                            self.position += 1;
-                            // Get both inputs from compare(input1, input2);.
-                            let compares : Result<[CompareType; 2], String> = self.get_compare_args(variables);
-                            match compares {
-                                Ok(compare) => {
-                                    // Check if both inputs are numbers.
-                                    if (matches!(compare[0], CompareType::Number(_) | CompareType::VariableNumber(_)) && matches!(compare[1], CompareType::Number(_) | CompareType::VariableNumber(_))) {
-                                        self.skip_whitespace();
-                                        if self.current_char() == ';' {
-                                            return Token::Error(String::from("Please use compare or remove it"));
-                                        } else {
-                                            let mut compare_symbols : Vec<CompareSymbol> = Vec::new();
-
-                                            loop {
-                                                self.skip_whitespace();
-                                                if self.current_char() == ';' {self.position += 1; break;} else if self.current_char() == '.' {
-                                                    self.position += 1;
-                                                    let syntax = &self.input[self.position..self.position + 2];
-                                                    match syntax {
-                                                        "==" | "!=" | ">=" | "<=" => {
-                                                            self.position += 2;
-                                                            self.skip_whitespace();
-                                                            if self.current_char() == '{' {
-                                                                self.position += 1;
-                                                                let func_content = self.get_content_from_braces();
-                                                                let compare_symbol = CompareSymbol{symbol : syntax.to_string(), function_content: func_content};
-                                                                compare_symbols.push(compare_symbol);
-                                                            } else {
-                                                                return Token::Error(String::from("expected { after .XX"))
-                                                            }
-                                                        },
-                                                        _ => {
-                                                            let one_char_syntax = &self.input[self.position..self.position + 1];
-                                                            match one_char_syntax {
-                                                                ">" | "<" => {
-                                                                    self.position += 2;
-                                                                    self.skip_whitespace();
-                                                                    if self.current_char() == '{' {
-                                                                        self.position += 1;
-                                                                        let func_content = self.get_content_from_braces();
-                                                                        let compare_symbol = CompareSymbol{symbol : one_char_syntax.to_string(), function_content: func_content};
-                                                                        compare_symbols.push(compare_symbol);
-                                                                    } else {
-                                                                        return Token::Error(String::from("expected { after .XX"))
-                                                                    }
-                                                                }
-                                                                _ => {return Token::Error(String::from("Invalid Comparing Syntax"));}  
-                                                            };
-                                                        }
-                                                    }
-                                                } else {
-                                                    return Token::Error(String::from("syntax error"));
-                                                }
-                                            }
-                            
-                                            let compare : Compare = Compare{compare_types : compare, symbols : compare_symbols};
-
-                                            // End
-                                            return Token::Compare(compare);
-                                        }
-                                    } 
-                                    else {
-                                        return Token::Error(String::from("Please provide valid compare"))
-                                    }
-                                },
-                                Err(error) => {
-                                    return Token::Error(error);
-                                }
-                            }
-                        } else {
-                            return Token::Error(String::from("Expected ( after compare"));
-                        }
-                    },
-                9 => {
-                    // Creating number variable.
-                        self.skip_whitespace();
-                        let variable_name = self.get_text();
-                        self.skip_whitespace();
-                        if self.current_char() == '=' {
-                            self.position += 1;
+                            return Token::DataBoolean(DataBoolean{name: bool_name, value: boolean_value});
+                        },
+                        3 => {
+                            // String variable
                             self.skip_whitespace();
-                            // Get init value for number variable.
-                            let number_value = self.get_number_from_number_variable_init();
-                            self.skip_whitespace();
-                            if self.current_char() == ';' {
-                                self.position += 1;
-                                let data_number : DataNumber = DataNumber{value: number_value, name: variable_name};
-                                return Token::Number(data_number);
-                            } else {
-                                return Token::Error(String::from("Expected ; after number"));
-                            }
-                        } else {
-                            return Token::Error(String::from("Expected = after number"));
-                        }
-                    },
-                10 => {
-                    // Loop fixed amount of times.
-                        if self.current_char() == '(' {
-                            self.position += 1;
-                            let loop_number : i32 = self.get_number_from_loop();
 
-                            if self.current_char() == ')' {
+                            let string_name = self.get_text();
+
+                            self.skip_whitespace();
+
+                            if self.current_char() == '=' {
                                 self.position += 1;
                                 self.skip_whitespace();
-                                if self.current_char() == '{' {
+
+                                if self.current_char() == '"' {
                                     self.position += 1;
-                                    let loop_content = self.get_content_from_braces();
-                                    return Token::Loop(LoopToken{content: loop_content, number: loop_number});
+
+                                    // Get init value from string.
+                                    let string_value : String = self.get_string_value();
+
+                                    self.skip_whitespace();
+
+                                    if self.current_char() == ';' {
+                                        self.position += 1;
+                                        return Token::String(DataString{name: string_name, value: string_value})
+                                    } else {
+                                        return Token::Error(String::from("Expected ;"));
+                                    }
                                 } else {
-                                    return Token::Error(String::from("Expected { after loop"));
+                                    return Token::Error(String::from("Expected String!!"));                              
                                 }
                             } else {
-                                return Token::Error(String::from("Expected ) after loop(number"))
+                                return Token::Error(format!("Expected = after string {}", string_name))
                             }
-                        } else {
-                            return Token::Error(String::from("Expected ( after loop"));
                         }
+                        4 => {
+                            // Wait set amount of time
+                            if self.current_char() == '(' {
+                                self.position += 1;
+                                let number = self.get_number_from_wait().expect("Did you use a number at wait?");
+
+                                if self.current_char() == ';' {
+                                    self.position += 1;
+                                    return Token::WaitNumber(number);
+                                } else {
+                                    return Token::Error(String::from("Expected ; after wait()"));
+                                }
+                            } else {
+                                return Token::Error(String::from("Expected ( After Wait"))
+                            }
+                        },
+                        5 => {
+                            if self.current_char() == '(' {
+                                self.position += 1;
+                                if self.current_char() == '"' {
+                                    self.position += 1;
+
+                                    let mut print_string = self.get_print_properties();
+                                
+                                    // Add newline to print string.
+                                    print_string.value.push_str("\\n");
+
+                                    if self.current_char() == ')' {
+                                        self.position += 1;
+                                        if self.current_char() == ';' {
+                                            self.position += 1;
+                                            return Token::PrintlnString(print_string);
+                                        } else {
+                                            return Token::Error(String::from("Expected ; To Close Line"));
+                                        }
+                                    } else {
+                                        return Token::Error(String::from("Expected ) on Print Function"))
+                                    }
+                                } else {
+                                    // Get name of string value from ().
+                                    let string_var_name = self.get_value_from_parentheses();
+
+                                    if self.current_char() == ';' {
+                                        self.position += 1;
+                                        return Token::PrintlnVariable(string_var_name);
+                                    } else {
+                                        return Token::Error(String::from("Expected ; after print statement!!"));
+                                    }
+                                }
+                            } else {
+                                return Token::Error(String::from("expected ( after println"));
+                            }
+                        },
+                        6 => {
+                            if self.current_char() == '(' {
+                                self.position += 1;
+                                if self.current_char() == '"' {
+                                    self.position += 1;
+
+                                    let print_string = self.get_print_properties();
+    
+                                    if self.current_char() == ')' {
+                                        self.position += 1;
+                                        if self.current_char() == ';' {
+                                            self.position += 1;
+                                            return Token::PrintString(print_string);
+                                        } else {
+                                            return Token::Error(String::from("Expected ; To Close Line"));
+                                        }
+                                    } else {
+                                        return Token::Error(String::from("Expected ) on Print Function"))                                
+                                    }
+                                } else {
+                                    let string_var_name = self.get_value_from_parentheses();
+
+                                    if self.current_char() == ';' {
+                                        self.position += 1;
+                                        return Token::PrintVariable(string_var_name);
+                                    } else {
+                                        return Token::Error(String::from("Expected ; after print statement!!"));
+                                    }
+                                }
+                            } else {
+                                return Token::Error(String::from("Expected ( after print"));
+                            }
+                        },
+                        8 => {
+                            if self.current_char() == '(' {
+                                self.position += 1;
+                                // Get both inputs from compare(input1, input2);.
+                                let compares : Result<[CompareType; 2], String> = self.get_compare_args(variables);
+                                match compares {
+                                    Ok(compare) => {
+                                        // Check if both inputs are numbers.
+                                        if (matches!(compare[0], CompareType::Number(_) | CompareType::VariableNumber(_)) && matches!(compare[1], CompareType::Number(_) | CompareType::VariableNumber(_))) {
+                                            self.skip_whitespace();
+                                            if self.current_char() == ';' {
+                                                return Token::Error(String::from("Please use compare or remove it"));
+                                            } else {
+                                                let mut compare_symbols : Vec<CompareSymbol> = Vec::new();
+
+                                                loop {
+                                                    self.skip_whitespace();
+                                                    if self.current_char() == ';' {self.position += 1; break;} else if self.current_char() == '.' {
+                                                        self.position += 1;
+                                                        let syntax = &self.input[self.position..self.position + 2];
+                                                        match syntax {
+                                                            "==" | "!=" | ">=" | "<=" => {
+                                                                self.position += 2;
+                                                                self.skip_whitespace();
+                                                                if self.current_char() == '{' {
+                                                                    self.position += 1;
+                                                                    let func_content = self.get_content_from_braces();
+                                                                    let compare_symbol = CompareSymbol{symbol : syntax.to_string(), function_content: func_content};
+                                                                    compare_symbols.push(compare_symbol);
+                                                                } else {
+                                                                    return Token::Error(String::from("expected { after .XX"))
+                                                                }
+                                                            },
+                                                            _ => {
+                                                                let one_char_syntax = &self.input[self.position..self.position + 1];
+                                                                match one_char_syntax {
+                                                                    ">" | "<" => {
+                                                                        self.position += 2;
+                                                                        self.skip_whitespace();
+                                                                        if self.current_char() == '{' {
+                                                                            self.position += 1;
+                                                                            let func_content = self.get_content_from_braces();
+                                                                            let compare_symbol = CompareSymbol{symbol : one_char_syntax.to_string(), function_content: func_content};
+                                                                            compare_symbols.push(compare_symbol);
+                                                                        } else {
+                                                                            return Token::Error(String::from("expected { after .XX"))
+                                                                        }
+                                                                    }
+                                                                    _ => {return Token::Error(String::from("Invalid Comparing Syntax"));}  
+                                                                };
+                                                            }
+                                                        }
+                                                    } else {
+                                                        return Token::Error(String::from("syntax error"));
+                                                    }
+                                                }
+                                                let compare : Compare = Compare{compare_types : compare, symbols : compare_symbols};
+
+                                                // End
+                                                return Token::Compare(compare);
+                                            }
+                                        } 
+                                        else {
+                                            return Token::Error(String::from("Please provide valid compare"))
+                                        }
+                                    },
+                                    Err(error) => {
+                                        return Token::Error(error);
+                                    }
+                                }
+                            } else {
+                                return Token::Error(String::from("Expected ( after compare"));
+                            }
+                        },
+                        9 => {
+                            // Creating number variable.
+                            self.skip_whitespace();
+                            let variable_name = self.get_text();
+                            self.skip_whitespace();
+                            if self.current_char() == '=' {
+                                self.position += 1;
+                                self.skip_whitespace();
+                                // Get init value for number variable.
+                                let number_value = self.get_number_from_number_variable_init();
+                                self.skip_whitespace();
+                                if self.current_char() == ';' {
+                                    self.position += 1;
+                                    let data_number : DataNumber = DataNumber{value: number_value, name: variable_name};
+                                    return Token::Number(data_number);
+                                } else {
+                                    return Token::Error(String::from("Expected ; after number"));
+                                }
+                            } else {
+                                return Token::Error(String::from("Expected = after number"));
+                            }
+                        },
+                        10 => {
+                            // Loop fixed amount of times.
+                            if self.current_char() == '(' {
+                                self.position += 1;
+                                let loop_number : i32 = self.get_number_from_loop();
+    
+                                if self.current_char() == ')' {
+                                    self.position += 1;
+                                    self.skip_whitespace();
+                                    if self.current_char() == '{' {
+                                        self.position += 1;
+                                        let loop_content = self.get_content_from_braces();
+                                        return Token::Loop(LoopToken{content: loop_content, number: loop_number});
+                                    } else {
+                                        return Token::Error(String::from("Expected { after loop"));
+                                    }
+                                } else {
+                                    return Token::Error(String::from("Expected ) after loop(number"))
+                                }
+                            } else {
+                                return Token::Error(String::from("Expected ( after loop"));
+                            }
+                        },
+                        11 => {
+                            // Skip text if it is a comment.
+                            self.handle_comment();
+                            return Token::Comment;
+                        },
+                        _ => {
+                                return Token::Error(format!("Unknown Character {}", self.current_char()));
+                        }
+                    }
                 },
-                11 => {
-                    // Skip text if it is a comment.
-                        self.handle_comment();
-                        return Token::Comment;
-                },
-                _ => {
-                    return Token::Error(format!("Unknown Character {}", self.current_char()));
+                GetTokenReturn::Variable(var) => {return Token::Error(String::from("got token variable"))},
+                GetTokenReturn::Function(func) => {
+                    if self.current_char() != '(' {
+                        return Token::Error(String::from("Expected ( after calling function"));
+                    }
+                    self.position += 1;
+                    // Add args later.
+                    self.position += 1;
+                    if self.current_char() != ';' {
+                        return Token::Error(String::from("Expected ; after calling function"));
+                    }
+
+                    self.position += 1;
+
+                    return Token::CallFunction(func.name);
                 }
             }
         }
     }
 
-    pub fn get_token(&mut self) -> i8 {
-        let tokens : HashMap<&str, i8> = HashMap::from([("fn", 0), ("term", 1), ("bool", 2), ("string", 3), ("wait", 4), ("println", 5), ("print", 6), ("call", 7), ("compare", 8), ("number", 9), ("loop", 10), ("\\\\", 11)]);
+    pub fn get_token(&mut self, variables : &HashMap<String, VariableType>, functions: &HashMap<String, FunctionStruct>) -> GetTokenReturn {
+        let tokens : HashMap<&str, i8> = HashMap::from([("fn", 0), ("term", 1), ("bool", 2), ("string", 3), ("wait", 4), ("println", 5), ("print", 6), ("compare", 7), ("number", 8), ("loop", 9), ("\\\\", 10)]);
 
         let mut res : String = String::new();
 
         while self.position < self.input.len() {
-            res.push(self.current_char());
-            self.position += 1;
-            let token = tokens.get(&res as &str);
-            match token {
-                Some(token) => {
-                    return *token;
+            match self.current_char() {
+                '(' | ')' | ';' | ' ' => {
+                   let token = tokens.get(&res as &str);
+                    match token {
+                        Some(token) => {
+                            return GetTokenReturn::Instruction(*token);
+                        },
+                        None => {}
+                    };
+                    let variable = variables.get(&res as &str);
+                    match variable {
+                        Some(var) => {
+                            return GetTokenReturn::Variable(var.clone());
+                        },
+                        None => {}
+                    }
+                    let function = functions.get(&res as &str);
+                    match function {
+                        Some(func) => {
+                            return GetTokenReturn::Function(func.clone());
+                        },
+                        None => {}
+                    }
+                    break;
                 },
-                None => {}
-            };
+                _ => {
+                    res.push(self.current_char());
+                    self.position += 1;
+                }
+            }
+            
         };
 
-        return -1;
+        return GetTokenReturn::Instruction(-1);
     }
 
     pub fn get_boolean_value(&mut self) -> String {
