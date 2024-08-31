@@ -1,8 +1,0 @@
-compare(30, 20)
-.>= {
-    println("greater equal");
-}
-.< {
-    println("less than");
-};
-term;

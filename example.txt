@@ -2,26 +2,22 @@ number ten = 10;
 number five = 5;
 string printstring = "print";
 
-fn compare() {
-    compare(five, 5)
-    .== {
-	wait(1);
-	println(printstring);
-	println("five = 5");
-    }
-    .!= {
-	println("five != 5");
-    };
+fn func() {
+    println("executed func");
 }
 
-compare(ten, 10)
+func();
+
+compare(five, 5)
 .== {
-    call compare();
+    wait(1);
+    println(printstring);
+    println("five = 5");
 }
 .!= {
-    println("ten != 10");
+    println("five != 5");
 };
 
-print("hello print");
+print(printstring);
 
 term;
