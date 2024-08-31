@@ -402,7 +402,7 @@ r#"    mov X0, #1
                             VariableType::String(_) => {
                                 parsed_text.push_str(&format!( 
 r#"    mov X0, #1
- ====================   adrp X1, {}@PAGE
+    adrp X1, {}@PAGE
     add X1, X1, {}@PAGEOFF
     adrp X3, {}@PAGE
     add X3, X3, {}@PAGEOFF
