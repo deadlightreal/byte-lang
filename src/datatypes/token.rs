@@ -4,6 +4,7 @@ use super::data_number::DataNumber;
 use super::compare::Compare;
 use super::loop_token::LoopToken;
 use super::function_struct::FunctionStruct;
+use super::data_boolean::DataBoolean;
 
 #[derive(Debug, PartialEq)]
 pub enum Token {
@@ -21,5 +22,6 @@ pub enum Token {
     Compare(Compare),
     Terminate(),
     Function(FunctionStruct),
-    CallFunction(String)
+    CallFunction(String),
+    DataBoolean(DataBoolean),
 }

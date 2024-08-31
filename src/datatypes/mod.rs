@@ -10,6 +10,7 @@ pub mod compare;
 pub mod loop_struct;
 pub mod loop_token;
 pub mod function_struct;
+pub mod data_boolean;
 
 pub use {
     data_string::DataString,
@@ -24,4 +25,5 @@ pub use {
     loop_struct::LoopStruct,
     loop_token::LoopToken,
     function_struct::FunctionStruct,
+    data_boolean::DataBoolean,
 };

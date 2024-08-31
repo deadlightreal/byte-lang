@@ -123,6 +123,13 @@ r#"f_{}:
             },
             VariableType::Number(number) => {
                 write!(writer, "{}: .word {}\n", number.name, number.value).expect("error writing to file");
+            },
+            VariableType::Bool(bool) => {
+                let val : u8 = match bool.value {
+                    false => 0,
+                    true => 1
+                };
+                write!(writer, "{}: .byte {}\n", bool.name, val).expect("error writing to file");
             }
         }
     }
@@ -154,6 +161,9 @@ fn handle_parsing(mut tokenizer : Tokenizer, variables : &mut HashMap<String, Va
         let token : Token = tokenizer.next_token(variables.clone(), functions.clone());
 
         match token {
+            Token::DataBoolean(databoolean) => {
+                variables.insert(databoolean.name.clone(), VariableType::Bool(databoolean));
+            },
             Token::CallFunction(name) => {
                 parsed_text.push_str(&format!(
 r#"    adr X10, f_{}_end

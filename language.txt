@@ -1,9 +1,3 @@
-compare(10, 5)
-.== {
-    println("equal");
-}
-.!= {
-    println("not equal");
-};
+bool boolean = true;
 
 term;

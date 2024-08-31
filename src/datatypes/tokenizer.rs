@@ -1,4 +1,4 @@
-use super::{Token, DataString, PrintString, FunctionStruct, DataNumber, VariableType, LoopToken, Compare, CompareType, CompareSymbol};
+use super::{Token, DataString, PrintString, DataBoolean, FunctionStruct, DataNumber, VariableType, LoopToken, Compare, CompareType, CompareSymbol};
 use std::num::ParseFloatError;
 use std::collections::HashMap;
 
@@ -63,6 +63,43 @@ impl<'a> Tokenizer<'a> {
                     } else {
                         return Token::Error(String::from("Syntax Error"))
                     }
+                },
+                "b" => {
+                    if &self.input[self.position..self.position + 4] == "bool" {
+                        self.position += 4;
+                        if self.current_char().is_whitespace() == false {
+                            return Token::Error(String::from("Expected Whitespace"));
+                        }
+
+                        self.position += 1;
+                        let bool_name = self.get_text();
+                        self.skip_whitespace();
+                        if self.current_char() != '=' {
+                            return Token::Error(String::from("Expected = after bool"));
+                        }
+
+                        self.position += 1;
+                        self.skip_whitespace();
+
+                        let bool_value : String = self.get_boolean_value();
+
+                        self.skip_whitespace();
+
+                        if self.current_char() != ';' {
+                            return Token::Error(String::from("Expected ;"));
+                        }
+
+                        self.position += 1;
+
+                        let boolean_value : bool = match &bool_value as &str {
+                            "false" => false,
+                            "true" => true,
+                            _ => {return Token::Error(String::from("Invalid bool value"))}
+                        };
+
+                        return Token::DataBoolean(DataBoolean{name: bool_name, value: boolean_value});
+                    }
+                    return Token::Error(String::from("Syntax Error"));
                 },
                 "s" => {
                     // String variable
@@ -371,6 +408,21 @@ impl<'a> Tokenizer<'a> {
                 }
             }
         }
+    }
+
+    pub fn get_boolean_value(&mut self) -> String {
+        let mut res : String = String::new();
+        
+        while self.position < self.input.len() {
+            if self.current_char().is_whitespace() || self.current_char() == ';' {
+                break;
+            } else {
+                res.push(self.current_char());
+                self.position += 1;
+            }
+        }
+
+        return res;
     }
 
     pub fn get_content_from_braces(&mut self) -> String {
