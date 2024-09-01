@@ -25,4 +25,5 @@ pub enum Token {
     CallFunction(String),
     DataBoolean(DataBoolean),
     Import(String),
+    Asm(String),
 }

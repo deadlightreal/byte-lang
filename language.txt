@@ -1,3 +1,7 @@
-import "./example.txt";
+asm
+<
+    mov X1, #1
+    mov X2, #2
+>
 
 term;

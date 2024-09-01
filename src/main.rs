@@ -215,6 +215,9 @@ fn handle_parsing(
         let token: Token = tokenizer.next_token(variables.clone(), functions.clone());
 
         match token {
+            Token::Asm(asm) => {
+                parsed_text.push_str(&asm);
+            },
             Token::Import(file_location) => {
                 let mut file = File::open(file_location).expect("error opening file");
 
