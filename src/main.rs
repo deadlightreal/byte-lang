@@ -66,6 +66,8 @@ _start:
     // Store strings used to print.
     let mut print_strings: Vec<String> = Vec::new();
 
+    let mut labels : Vec<String> = Vec::new();
+
     // Variables like numbers and strings.
     let mut variables: HashMap<String, VariableType> = HashMap::new();
 
@@ -85,6 +87,7 @@ _start:
         &mut loops,
         &mut compare_number,
         &mut functions,
+        &mut labels,
     );
 
     match parsed_text {
@@ -114,6 +117,10 @@ _start:
 
     let mut index = 0;
 
+    for item in labels {
+        write!(writer, "{}", item).expect("error writing to a file");
+    }
+
     write!(writer, ".data\n").expect("error writing to a file");
 
     // Create a new_line string that contains \n.
@@ -124,8 +131,8 @@ _start:
     for loop_struct in loops {
         write!(
             writer,
-            "l_{}_limit: .word {}\nl_{}_index: .word 1\n",
-            loop_index, loop_struct.limit, loop_index
+            "l_{}_limit: .word {}\nl_{}_index: .word 0\nl_{}_return: .quad 0\n",
+            loop_index, loop_struct.limit, loop_index, loop_index
         )
         .expect("error writing to a file");
         loop_index += 1;
@@ -149,7 +156,7 @@ _start:
             VariableType::String(string) => {
                 write!(
                     writer,
-                    "{}: .asciz \"{}\"\n{}_end:\n{}_length: .word {} \n",
+                    "{}: .asciz \"{}\"\n{}_end:\n{}_length: .word {}\n",
                     string.name.clone(),
                     string.value,
                     string.name,
@@ -200,7 +207,8 @@ fn handle_parsing(
     loops: &mut Vec<LoopStruct>,
     compare_number: &mut u32,
     functions: &mut HashMap<String, FunctionStruct>,
-) -> Result<String, String> {
+    labels: &mut Vec<String>,
+    ) -> Result<String, String> {
     let mut parsed_text = String::new();
 
     loop {
@@ -234,6 +242,7 @@ f_{}_end:
                     loops,
                     compare_number,
                     functions,
+                    labels,
                 );
                 match parsed_asm {
                     Ok(text) => functions.insert(
@@ -362,6 +371,7 @@ f_{}_end:
                         loops,
                         compare_number,
                         functions,
+                        labels,
                     );
                     match parsed_compare_text {
                         Ok(content) => {
@@ -408,11 +418,27 @@ continue_{}:
                     loops,
                     compare_number,
                     functions,
+                    labels,
                 );
                 match compiled_content {
                     Ok(content) => {
                         parsed_text.push_str(&format!(
-                            r#"    bl l_{}
+                            r#"    bl l_{}_start
+
+"#,
+                            num
+                        ));
+                        labels.push(format!(r#"
+l_{}_start:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+
+    adrp X19, l_{}_return@PAGE
+    add X19, X19, l_{}_return@PAGEOFF
+
+    str X30, [X19]
+
+    b l_{}
 
 l_{}:
 
@@ -421,26 +447,27 @@ l_{}:
     adrp X13, l_{}_index@PAGE   
     add X13, X13, l_{}_index@PAGEOFF
     ldr W11, [X13]
+    add W11, W11, #1
+    str W11, [X13]
 
     adrp X14, l_{}_limit@PAGE
     add X14, X14, l_{}_limit@PAGEOFF
     ldr W12, [X14]
 
     cmp W12, W11
-    b.eq l_{}_end
+    b.ne l_{}
 
-    add W11, W11, #1
-    str W11, [X13]
-    bl l_{}
+    mov W15, #0
+    str W15, [X13]
 
-l_{}_end:
+    adrp X19, l_{}_return@PAGE
+    add X19, X19, l_{}_return@PAGEOFF
 
-    mov W11, #1
-    str W11, [X13]
+    ldr X30, [X19]
 
-"#,
-                            num, num, content, num, num, num, num, num, num, num
-                        ));
+    ret
+
+"#, num, num, num, num, num, content, num, num, num, num, num, num, num))
                     }
                     Err(err) => return Err(err),
                 }

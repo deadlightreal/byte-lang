@@ -1,5 +1,10 @@
-bool boolean = true;
+loop(5) {
+    println("in loop 1");
+    loop(5) {
+        println("in loop 2");
+    }
+}
 
-println("hello");
+println("outside loop");
 
 term;

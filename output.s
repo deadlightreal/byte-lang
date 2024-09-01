@@ -2,82 +2,12 @@
 .align 2
 _start:
 
-    adr X10, f_func_end
-    adrp X11, fn_end@PAGE
-    add X11, X11, fn_end@PAGEOFF
-    str X10, [X11]
-    bl f_func
+    bl l_0_start
 
-f_func_end:
-
-    adrp X3, five@PAGE
-    add X3, X3, five@PAGEOFF
-    ldr W1, [X3]
-
-    mov W2, #5
-
-    cmp W1, W2
-
-    b.eq equal_0
-
-    b.ne not_equal_0
-
-    bl continue_0
-equal_0:
-    mov x8, 1
-    stp x8, xzr, [sp, -0x10]!
-    mov x0, sp
-    mov x1, 0
-    bl _nanosleep
-    add sp, sp, 0x10
-
-    mov X0, #1
-    adrp X1, printstring@PAGE
-    add X1, X1, printstring@PAGEOFF
-    adrp X3, printstring_end@PAGE
-    add X3, X3, printstring_end@PAGEOFF
-    sub X2, X3, X1
-    mov X16, #4
-    svc #0x80
-
-    mov X0, #1
-    adrp X1, new_line@PAGE
-    add X1, X1, new_line@PAGEOFF
-    mov X2, 1
-    mov X16, #4
-    svc #0x80
-
-    mov X0, #1
-    adrp X1, print_string_1@PAGE
-    add X1, X1, print_string_1@PAGEOFF
-    mov X2, 9
-    mov X16, #4
-    svc #0x80
-
-
-
-    bl continue_0
-not_equal_0:
     mov X0, #1
     adrp X1, print_string_2@PAGE
     add X1, X1, print_string_2@PAGEOFF
-    mov X2, 10
-    mov X16, #4
-    svc #0x80
-
-
-
-    bl continue_0
-
-
-continue_0:
-
-    mov X0, #1
-    adrp X1, printstring@PAGE
-    add X1, X1, printstring@PAGEOFF
-    adrp X3, printstring_end@PAGE
-    add X3, X3, printstring_end@PAGEOFF
-    sub X2, X3, X1
+    mov X2, 13
     mov X16, #4
     svc #0x80
 
@@ -85,29 +15,109 @@ continue_0:
     mov X16, #1
     svc #0x80
 
-f_func:
+
+l_1_start:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+
+    adrp X19, l_1_return@PAGE
+    add X19, X19, l_1_return@PAGEOFF
+
+    str X30, [X19]
+
+    b l_1
+
+l_1:
 
     mov X0, #1
-    adrp X1, print_string_0@PAGE
-    add X1, X1, print_string_0@PAGEOFF
-    mov X2, 14
+    adrp X1, print_string_1@PAGE
+    add X1, X1, print_string_1@PAGEOFF
+    mov X2, 10
     mov X16, #4
     svc #0x80
 
 
-    adrp X10, fn_end@PAGE
-    add X10, X10, fn_end@PAGEOFF
-    ldr X11, [X10]
-    br X11
+
+    adrp X13, l_1_index@PAGE   
+    add X13, X13, l_1_index@PAGEOFF
+    ldr W11, [X13]
+    add W11, W11, #1
+    str W11, [X13]
+
+    adrp X14, l_1_limit@PAGE
+    add X14, X14, l_1_limit@PAGEOFF
+    ldr W12, [X14]
+
+    cmp W12, W11
+    b.ne l_1
+
+    mov W15, #0
+    str W15, [X13]
+
+    adrp X19, l_1_return@PAGE
+    add X19, X19, l_1_return@PAGEOFF
+
+    ldr X30, [X19]
+
+    ret
+
+
+l_0_start:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+
+    adrp X19, l_0_return@PAGE
+    add X19, X19, l_0_return@PAGEOFF
+
+    str X30, [X19]
+
+    b l_0
+
+l_0:
+
+    mov X0, #1
+    adrp X1, print_string_0@PAGE
+    add X1, X1, print_string_0@PAGEOFF
+    mov X2, 10
+    mov X16, #4
+    svc #0x80
+
+    bl l_1_start
+
+
+
+    adrp X13, l_0_index@PAGE   
+    add X13, X13, l_0_index@PAGEOFF
+    ldr W11, [X13]
+    add W11, W11, #1
+    str W11, [X13]
+
+    adrp X14, l_0_limit@PAGE
+    add X14, X14, l_0_limit@PAGEOFF
+    ldr W12, [X14]
+
+    cmp W12, W11
+    b.ne l_0
+
+    mov W15, #0
+    str W15, [X13]
+
+    adrp X19, l_0_return@PAGE
+    add X19, X19, l_0_return@PAGEOFF
+
+    ldr X30, [X19]
+
+    ret
 
 .data
 new_line: .ascii "\n"
 fn_end: .quad _start
-print_string_0: .ascii "executed func\n"
-print_string_1: .ascii "five = 5\n"
-print_string_2: .ascii "five != 5\n"
-printstring: .asciz "print"
-printstring_end:
-printstring_length: .word 5 
-five: .word 5
-ten: .word 10
+l_0_limit: .word 5
+l_0_index: .word 0
+l_0_return: .quad 0
+l_1_limit: .word 5
+l_1_index: .word 0
+l_1_return: .quad 0
+print_string_0: .ascii "in loop 1\n"
+print_string_1: .ascii "in loop 2\n"
+print_string_2: .ascii "outside loop\n"

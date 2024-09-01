@@ -215,7 +215,7 @@ impl<'a> Tokenizer<'a> {
                                 return Token::Error(String::from("Expected ( after print"));
                             }
                         },
-                        8 => {
+                        7 => {
                             if self.current_char() == '(' {
                                 self.position += 1;
                                 // Get both inputs from compare(input1, input2);.
@@ -289,7 +289,7 @@ impl<'a> Tokenizer<'a> {
                                 return Token::Error(String::from("Expected ( after compare"));
                             }
                         },
-                        9 => {
+                        8 => {
                             // Creating number variable.
                             self.skip_whitespace();
                             let variable_name = self.get_text();
@@ -311,7 +311,7 @@ impl<'a> Tokenizer<'a> {
                                 return Token::Error(String::from("Expected = after number"));
                             }
                         },
-                        10 => {
+                        9 => {
                             // Loop fixed amount of times.
                             if self.current_char() == '(' {
                                 self.position += 1;
@@ -334,7 +334,7 @@ impl<'a> Tokenizer<'a> {
                                 return Token::Error(String::from("Expected ( after loop"));
                             }
                         },
-                        11 => {
+                        10 => {
                             // Skip text if it is a comment.
                             self.handle_comment();
                             return Token::Comment;
@@ -372,6 +372,7 @@ impl<'a> Tokenizer<'a> {
         while self.position < self.input.len() {
             match self.current_char() {
                 '(' | ')' | ';' | ' ' => {
+                    println!("gotten token: {}", res);
                    let token = tokens.get(&res as &str);
                     match token {
                         Some(token) => {
