@@ -215,6 +215,28 @@ fn handle_parsing(
         let token: Token = tokenizer.next_token(variables.clone(), functions.clone());
 
         match token {
+            Token::Import(file_location) => {
+                let mut file = File::open(file_location).expect("error opening file");
+
+                let mut file_content = String::new();
+
+                file.read_to_string(&mut file_content).expect("Error reading as string");
+
+                println!("{}", file_content);
+                
+                let file_tokenizer = Tokenizer::new(&file_content as &str);
+
+                let parsed_file_code = handle_parsing(file_tokenizer, variables, loop_number, print_strings, loops, compare_number, functions, labels);
+
+                match parsed_file_code {
+                    Ok(code) => {
+                        parsed_text.push_str(&code);
+                    },
+                    Err(err) => {
+                        return Err(err);
+                    }
+                }
+            },
             Token::DataBoolean(databoolean) => {
                 variables.insert(databoolean.name.clone(), VariableType::Bool(databoolean));
             }

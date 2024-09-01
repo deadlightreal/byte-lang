@@ -24,4 +24,5 @@ pub enum Token {
     Function(FunctionStruct),
     CallFunction(String),
     DataBoolean(DataBoolean),
+    Import(String),
 }
