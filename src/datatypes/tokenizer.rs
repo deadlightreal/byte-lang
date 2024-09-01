@@ -360,6 +360,18 @@ impl<'a> Tokenizer<'a> {
 
                             return Token::Import(content);
                         },
+                        12 => {
+                            println!("asm!!!!!!");
+                            self.skip_whitespace();
+                            if self.current_char() != '<' {
+                                return Token::Error(String::from("expected < after asm"));
+                            } 
+                            
+                            self.position += 1;
+
+                            let content = self.get_content_from_asm();
+                            return Token::Asm(content);
+                        },
                         _ => {
                                 return Token::Error(format!("Unknown Character {}", self.current_char()));
                         }
@@ -385,15 +397,31 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    pub fn get_content_from_asm(&mut self) -> String {
+        let mut res : String = String::new();
+
+        while self.position < self.input.len() {
+            if self.current_char() == '>' {
+                self.position += 1;
+                break;
+            } else {
+                res.push(self.current_char());
+                self.position += 1;
+            }
+        }
+
+        return res;
+    }
+
     pub fn get_token(&mut self, variables : &HashMap<String, VariableType>, functions: &HashMap<String, FunctionStruct>) -> GetTokenReturn {
-        let tokens : HashMap<&str, i8> = HashMap::from([("fn", 0), ("term", 1), ("bool", 2), ("string", 3), ("wait", 4), ("println", 5), ("print", 6), ("compare", 7), ("number", 8), ("loop", 9), ("\\\\", 10), ("import", 11)]);
+        let tokens : HashMap<&str, i8> = HashMap::from([("fn", 0), ("term", 1), ("bool", 2), ("string", 3), ("wait", 4), ("println", 5), ("print", 6), ("compare", 7), ("number", 8), ("loop", 9), ("\\\\", 10), ("import", 11), ("asm", 12)]);
 
         let mut res : String = String::new();
 
         while self.position < self.input.len() {
             match self.current_char() {
-                '(' | ')' | ';' | ' ' => {
-                    println!("gotten token: {}", res);
+                '(' | ')' | ';' | ' ' | '<' | '>' | '\n' => {
+                    println!("gotten token:{}|", res);
                    let token = tokens.get(&res as &str);
                     match token {
                         Some(token) => {
