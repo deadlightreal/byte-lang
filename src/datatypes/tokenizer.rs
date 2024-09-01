@@ -339,6 +339,27 @@ impl<'a> Tokenizer<'a> {
                             self.handle_comment();
                             return Token::Comment;
                         },
+                        11 => {
+                            // Import file
+                            self.skip_whitespace();
+                            if self.current_char() != '"' {
+                                return Token::Error(String::from("Expected \" after import"));
+                            }
+
+                            self.position += 1;
+
+                            let content = self.get_string_value();
+
+                            println!("{:?}", content);
+
+                            if self.current_char() != ';' {
+                                return Token::Error(String::from("Expected ; after import"));
+                            }
+
+                            self.position += 1;
+
+                            return Token::Import(content);
+                        },
                         _ => {
                                 return Token::Error(format!("Unknown Character {}", self.current_char()));
                         }
@@ -365,7 +386,7 @@ impl<'a> Tokenizer<'a> {
     }
 
     pub fn get_token(&mut self, variables : &HashMap<String, VariableType>, functions: &HashMap<String, FunctionStruct>) -> GetTokenReturn {
-        let tokens : HashMap<&str, i8> = HashMap::from([("fn", 0), ("term", 1), ("bool", 2), ("string", 3), ("wait", 4), ("println", 5), ("print", 6), ("compare", 7), ("number", 8), ("loop", 9), ("\\\\", 10)]);
+        let tokens : HashMap<&str, i8> = HashMap::from([("fn", 0), ("term", 1), ("bool", 2), ("string", 3), ("wait", 4), ("println", 5), ("print", 6), ("compare", 7), ("number", 8), ("loop", 9), ("\\\\", 10), ("import", 11)]);
 
         let mut res : String = String::new();
 
