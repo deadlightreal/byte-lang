@@ -1,7 +1,12 @@
-asm
-<
-    mov X1, #1
-    mov X2, #2
->
+number test = 0;
+number second = 11;
+
+compare(10, second)
+.== {
+    println("equal");
+}
+.!= {
+    println("not equal");
+};
 
 term;

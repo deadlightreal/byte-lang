@@ -11,6 +11,8 @@ pub mod loop_struct;
 pub mod loop_token;
 pub mod function_struct;
 pub mod data_boolean;
+pub mod stack_item;
+pub mod stack_frame;
 
 pub use {
     data_string::DataString,
@@ -26,4 +28,6 @@ pub use {
     loop_token::LoopToken,
     function_struct::FunctionStruct,
     data_boolean::DataBoolean,
+    stack_frame::StackFrame,
+    stack_item::StackItem,
 };

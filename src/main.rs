@@ -8,7 +8,7 @@ mod compile_asm;
 mod datatypes;
 
 use compile_asm::compile_asm;
-use datatypes::{CompareType, FunctionStruct, LoopStruct, Token, Tokenizer, VariableType};
+use datatypes::{CompareType, FunctionStruct, StackItem, LoopStruct, Token, Tokenizer, VariableType, StackFrame};
 
 fn main() {
     let command = std::env::args().nth(1).expect("Please Provide a command");
@@ -69,7 +69,8 @@ _start:
     let mut labels : Vec<String> = Vec::new();
 
     // Variables like numbers and strings.
-    let mut variables: HashMap<String, VariableType> = HashMap::new();
+    let mut stack : Vec<StackFrame> = Vec::new();
+    stack.push(StackFrame{stack_items: HashMap::new()});
 
     let mut functions: HashMap<String, FunctionStruct> = HashMap::new();
 
@@ -81,7 +82,7 @@ _start:
 
     let parsed_text = handle_parsing(
         tokenizer,
-        &mut variables,
+        &mut stack,
         loop_number,
         &mut print_strings,
         &mut loops,
@@ -149,6 +150,7 @@ _start:
         index += 1;
     }
 
+    /*
     // Write variables at the data section.
     for item in variables.values() {
         // Match the variable type.
@@ -178,6 +180,7 @@ _start:
             }
         }
     }
+    */
 
     // Save the file with new content.
     writer.flush().expect("Err Flushing To File");
@@ -201,7 +204,7 @@ _start:
 
 fn handle_parsing(
     mut tokenizer: Tokenizer,
-    variables: &mut HashMap<String, VariableType>,
+    stack: &mut Vec<StackFrame>,
     mut loop_number: u32,
     print_strings: &mut Vec<String>,
     loops: &mut Vec<LoopStruct>,
@@ -212,10 +215,11 @@ fn handle_parsing(
     let mut parsed_text = String::new();
 
     loop {
-        let token: Token = tokenizer.next_token(variables.clone(), functions.clone());
+        let token: Token = tokenizer.next_token(stack.clone(), functions.clone());
 
         match token {
             Token::Asm(asm) => {
+                println!("asm");
                 parsed_text.push_str(&asm);
             },
             Token::Import(file_location) => {
@@ -229,7 +233,7 @@ fn handle_parsing(
                 
                 let file_tokenizer = Tokenizer::new(&file_content as &str);
 
-                let parsed_file_code = handle_parsing(file_tokenizer, variables, loop_number, print_strings, loops, compare_number, functions, labels);
+                let parsed_file_code = handle_parsing(file_tokenizer, stack, loop_number, print_strings, loops, compare_number, functions, labels);
 
                 match parsed_file_code {
                     Ok(code) => {
@@ -240,9 +244,11 @@ fn handle_parsing(
                     }
                 }
             },
+            /*
             Token::DataBoolean(databoolean) => {
                 variables.insert(databoolean.name.clone(), VariableType::Bool(databoolean));
             }
+            */
             Token::CallFunction(name) => {
                 parsed_text.push_str(&format!(
                     r#"    adr X10, f_{}_end
@@ -261,7 +267,7 @@ f_{}_end:
                 let func_tokenizer = Tokenizer::new(&func.content);
                 let parsed_asm = handle_parsing(
                     func_tokenizer,
-                    variables,
+                    stack,
                     loop_number,
                     print_strings,
                     loops,
@@ -306,16 +312,12 @@ f_{}_end:
                             ));
                         }
                         CompareType::VariableNumber(variable) => {
+                            println!("cmp type var");
                             parsed_text.push_str(&format!(
-                                r#"    adrp X3, {}@PAGE
-    add X3, X3, {}@PAGEOFF
-    ldr W{}, [X3]
+                                r#"
+    ldr W{}, [sp, #{}]
 
-"#,
-                                variable.name,
-                                variable.name,
-                                1 + index
-                            ));
+"#, 1 + index, variable.offset));
                         }
                         CompareType::None() => {
                             return Err(String::from("Compare type was not given"));
@@ -390,7 +392,7 @@ f_{}_end:
                     };
                     let parsed_compare_text = handle_parsing(
                         new_tokenizer,
-                        variables,
+                        stack,
                         loop_number,
                         print_strings,
                         loops,
@@ -425,8 +427,18 @@ continue_{}:
                 ));
             }
             Token::Number(number) => {
-                // Insert into variables hashmap the number variable.
-                variables.insert(number.name.clone(), VariableType::Number(number));
+                let ok_offset = get_offset(stack.clone());
+                let stack_item : StackItem = StackItem{offset: ok_offset, size: 16, variable: VariableType::Number(number.clone())};
+             
+                parsed_text.push_str(&format!(r#"
+    sub sp, sp, #{}
+    mov X1, #{}
+    str X1, [sp, #{}]
+
+"#, 16, number.value, ok_offset));
+                let last = stack.last_mut().expect("error getting last mut from stack");
+                last.stack_items.insert(number.name, stack_item);
+                println!("{:?}", stack);
             }
             Token::Loop(loop_token) => {
                 let num = loop_number;
@@ -437,7 +449,7 @@ continue_{}:
                 let new_tokenizer = Tokenizer::new(&loop_token.content as &str);
                 let compiled_content = handle_parsing(
                     new_tokenizer,
-                    variables,
+                    stack,
                     loop_number,
                     print_strings,
                     loops,
@@ -455,9 +467,6 @@ continue_{}:
                         ));
                         labels.push(format!(r#"
 l_{}_start:
-    stp x29, x30, [sp, #-16]!
-    mov x29, sp
-
     adrp X19, l_{}_return@PAGE
     add X19, X19, l_{}_return@PAGEOFF
 
@@ -549,8 +558,9 @@ l_{}:
                 ));
                 print_strings.push(print_string.value);
             }
+            /*
             Token::PrintVariable(name) => {
-                let variable = variables.get(&name);
+                let variable = stack.get(&name);
 
                 // Check if variable exists.
                 match variable {
@@ -634,6 +644,7 @@ l_{}:
                 // Insert string variable to variables hashmap.
                 variables.insert(string.name.clone(), VariableType::String(string));
             }
+            */
             Token::Error(err) => {
                 // Thow an error and return.
                 return Err(err);
@@ -646,8 +657,39 @@ l_{}:
             Token::Comment => {
                 // Do nothing if it is comment
             }
+            _ => {}
         }
     }
 
     return Ok(parsed_text);
+}
+
+fn get_offset(stack : Vec<StackFrame>) -> u32 {
+    let last_stack = stack.last().expect("error getting stack");
+
+    let mut biggest_offset = 0;
+
+    for item in last_stack.stack_items.values() {
+        if item.offset >= biggest_offset {
+            biggest_offset = item.offset + item.size;
+        }
+    }
+
+    if biggest_offset == 0 {
+        if stack.len() >= 2 {
+            let stack_before = stack.get(stack.len() - 1).unwrap();
+
+            for item in stack_before.stack_items.values() {
+                if item.offset > biggest_offset {
+                    biggest_offset = item.offset + item.size;
+                }
+            }
+
+            return biggest_offset;
+        } else {
+            return 0;
+        }
+    } else {
+        return biggest_offset;
+    }
 }
