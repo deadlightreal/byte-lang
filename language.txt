@@ -1,12 +1,12 @@
 number test = 0;
-number second = 11;
 
-compare(10, second)
-.== {
-    println("equal");
+fn fn_test() {
+
 }
-.!= {
-    println("not equal");
-};
+
+fn_test();
+println("after first");
+fn_test();
+println("after second");
 
 term;

@@ -7,4 +7,5 @@ pub enum VariableType {
     Number(DataNumber),
     String(DataString),
     Bool(DataBoolean),
+    Return(),
 }
