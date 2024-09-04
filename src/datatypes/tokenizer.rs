@@ -1,4 +1,4 @@
-use super::{Token, DataString, PrintString, DataBoolean, FunctionStruct, DataNumber, VariableType, LoopToken, Compare, CompareType, CompareSymbol};
+use super::{Token, DataString, PrintString, DataBoolean, StackItem, StackFrame, FunctionStruct, DataNumber, VariableType, LoopToken, Compare, CompareType, CompareSymbol};
 use std::num::ParseFloatError;
 use std::collections::HashMap;
 
@@ -24,13 +24,13 @@ impl<'a> Tokenizer<'a> {
     }
 
     // Get next token.
-    pub fn next_token(&mut self, variables : HashMap<String, VariableType>, functions: HashMap<String, FunctionStruct>) -> Token {
+    pub fn next_token(&mut self, stack : Vec<StackFrame>, functions: HashMap<String, FunctionStruct>) -> Token {
         self.skip_whitespace();
 
         if self.position >= self.input.len() {
             return Token::EOF;
         } else {
-            let token_return = self.get_token(&variables, &functions);
+            let token_return = self.get_token(&stack, &functions);
 
             // Percentage compiled.
             let percentage = (self.position as f64 / self.input.len() as f64) * 1000.0;
@@ -219,7 +219,7 @@ impl<'a> Tokenizer<'a> {
                             if self.current_char() == '(' {
                                 self.position += 1;
                                 // Get both inputs from compare(input1, input2);.
-                                let compares : Result<[CompareType; 2], String> = self.get_compare_args(variables);
+                                let compares : Result<[CompareType; 2], String> = self.get_compare_args(stack);
                                 match compares {
                                     Ok(compare) => {
                                         // Check if both inputs are numbers.
@@ -413,7 +413,7 @@ impl<'a> Tokenizer<'a> {
         return res;
     }
 
-    pub fn get_token(&mut self, variables : &HashMap<String, VariableType>, functions: &HashMap<String, FunctionStruct>) -> GetTokenReturn {
+    pub fn get_token(&mut self, stack : &Vec<StackFrame>, functions: &HashMap<String, FunctionStruct>) -> GetTokenReturn {
         let tokens : HashMap<&str, i8> = HashMap::from([("fn", 0), ("term", 1), ("bool", 2), ("string", 3), ("wait", 4), ("println", 5), ("print", 6), ("compare", 7), ("number", 8), ("loop", 9), ("\\\\", 10), ("import", 11), ("asm", 12)]);
 
         let mut res : String = String::new();
@@ -429,10 +429,10 @@ impl<'a> Tokenizer<'a> {
                         },
                         None => {}
                     };
-                    let variable = variables.get(&res as &str);
+                    let variable = stack.last().unwrap().stack_items.get(&res);
                     match variable {
                         Some(var) => {
-                            return GetTokenReturn::Variable(var.clone());
+                            return GetTokenReturn::Variable(var.variable.clone());
                         },
                         None => {}
                     }
@@ -500,7 +500,7 @@ impl<'a> Tokenizer<'a> {
     }
 
     // Get arguments from compare(arg1, arg2); and return error or result.
-    pub fn get_compare_args(&mut self, variables : HashMap<String, VariableType>) -> Result<[CompareType; 2], String> {
+    pub fn get_compare_args(&mut self, stack : Vec<StackFrame>) -> Result<[CompareType; 2], String> {
         self.skip_whitespace();
         let mut arg1 = String::new();
         let mut arg2 = String::new();
@@ -533,16 +533,18 @@ impl<'a> Tokenizer<'a> {
 
         let mut result : [CompareType; 2] = [CompareType::None(), CompareType::None()];
 
-        let arg1var = variables.get(&arg1);
-        let arg2var = variables.get(&arg2);
+        let arg1var = stack.last().unwrap().stack_items.get(&arg1);
+        let arg2var = stack.last().unwrap().stack_items.get(&arg2);
 
         match arg1var {
             Some(variable) => {
-                match variable {
-                    VariableType::Number(number) => {
-                        result[0] = CompareType::VariableNumber(number.clone())
+                match &variable.variable {
+                    VariableType::Number(_) => {
+                        result[0] = CompareType::VariableNumber(variable.clone());
                     },
-                    _ => {}
+                    _ => {
+                        println!("Invalid Variable Used In Compare");
+                    }
                 }
             },
             None => {
@@ -558,11 +560,13 @@ impl<'a> Tokenizer<'a> {
 
         match arg2var {
             Some(variable) => {
-                match variable {
-                    VariableType::Number(number) => {
-                        result[1] = CompareType::VariableNumber(number.clone())
+                match &variable.variable {
+                    VariableType::Number(_) => {
+                        result[1] = CompareType::VariableNumber(variable.clone());
                     },
-                    _ => {}
+                    _ => {
+                        println!("Invalid Variable Used In Compare");
+                    }
                 }
             },
             None => {

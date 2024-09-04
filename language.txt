@@ -1,7 +1,18 @@
-asm
-<
-    mov X1, #1
-    mov X2, #2
->
+number test = 5;
+number num3 = 4;
+number num4 = 10;
+bool booltest = false;
 
+fn fn_test() {
+    number num1 = 0;
+    number num2 = 1;
+}
+
+fn_test();
+println("after first");
+compare(5, test)
+.== {
+    fn_test();
+    println("after second");
+};
 term;
