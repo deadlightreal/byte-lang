@@ -223,7 +223,7 @@ impl<'a> Tokenizer<'a> {
                                 match compares {
                                     Ok(compare) => {
                                         // Check if both inputs are numbers.
-                                        if (matches!(compare[0], CompareType::Number(_) | CompareType::VariableNumber(_)) && matches!(compare[1], CompareType::Number(_) | CompareType::VariableNumber(_))) {
+                                        if (matches!(compare[0], CompareType::Number(_) | CompareType::VariableNumber(_)) && matches!(compare[1], CompareType::Number(_) | CompareType::VariableNumber(_))) || (matches!(compare[0], CompareType::Bool(_) | CompareType::VariableBool(_)) && matches!(compare[1], CompareType::Bool(_) | CompareType::VariableBool(_))) {
                                             self.skip_whitespace();
                                             if self.current_char() == ';' {
                                                 return Token::Error(String::from("Please use compare or remove it"));
@@ -542,6 +542,9 @@ impl<'a> Tokenizer<'a> {
                     VariableType::Number(_) => {
                         result[0] = CompareType::VariableNumber(variable.clone());
                     },
+                    VariableType::Bool(_) => {
+                        result[0] = CompareType::VariableBool(variable.clone());
+                    },
                     _ => {
                         println!("Invalid Variable Used In Compare");
                     }
@@ -553,7 +556,11 @@ impl<'a> Tokenizer<'a> {
                     let converted_number : i64 = arg1.clone().parse::<i64>().expect("error parsing to number");
                     result[0] = CompareType::Number(converted_number)
                 } else {
-                    return Err(String::from("please provide a valid variable or value"));
+                    match &arg1 as &str {
+                        "true" => result[0] = CompareType::Bool(true),
+                        "false" => result[0] = CompareType::Bool(false),
+                        _ => {return Err(String::from("Invalid Value In Compare"))}
+                    }
                 }
             }
         }
@@ -563,6 +570,9 @@ impl<'a> Tokenizer<'a> {
                 match &variable.variable {
                     VariableType::Number(_) => {
                         result[1] = CompareType::VariableNumber(variable.clone());
+                    },
+                    VariableType::Bool(_) => {
+                        result[1] = CompareType::VariableBool(variable.clone());
                     },
                     _ => {
                         println!("Invalid Variable Used In Compare");
@@ -575,7 +585,11 @@ impl<'a> Tokenizer<'a> {
                     let converted_number : i64 = arg2.clone().parse::<i64>().expect("error parsing to number");
                     result[1] = CompareType::Number(converted_number)
                 } else {
-                    return Err(String::from("please provide a valid variable or value"));
+                    match &arg2 as &str {
+                        "true" => result[1] = CompareType::Bool(true),
+                        "false" => result[1] = CompareType::Bool(false),
+                        _ => {return Err(String::from("Invalid Value In Compare"))}
+                    }
                 }
             }
         }

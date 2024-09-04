@@ -300,8 +300,24 @@ fn handle_parsing(
                                 num
                             ));
                         }
+                        CompareType::Bool(bool) => {
+                            let num = match bool {
+                                true => 1,
+                                false => 0
+                            };
+                            parsed_text.push_str(&format!(
+r#"    mov W{}, #{}
+
+"#, 1 + index, num));
+                        }
+                        CompareType::VariableBool(variable) => {
+                            parsed_text.push_str(&format!(
+                                r#"
+    ldr W{}, [sp, #{}]
+
+"#, 1 + index, (*current_offset as u32 - 16) - variable.offset));
+                        }
                         CompareType::VariableNumber(variable) => {
-                            println!("cmp type var");
                             parsed_text.push_str(&format!(
                                 r#"
     ldr W{}, [sp, #{}]

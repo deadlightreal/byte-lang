@@ -10,7 +10,7 @@ fn fn_test() {
 
 fn_test();
 println("after first");
-compare(5, test)
+compare(booltest, false)
 .== {
     fn_test();
     println("after second");
