@@ -6,5 +6,7 @@ use super::StackItem;
 pub enum CompareType {
     Number(i64),
     VariableNumber(StackItem),
-    None()
+    None(),
+    Bool(bool),
+    VariableBool(StackItem),
 }

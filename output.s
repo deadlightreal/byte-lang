@@ -31,10 +31,10 @@ _start:
     mov X16, #4
     svc #0x80
 
-    mov W1, #5
 
+    ldr W1, [sp, #0]
 
-    ldr W2, [sp, #48]
+    mov W2, #0
 
     cmp W1, W2
 
