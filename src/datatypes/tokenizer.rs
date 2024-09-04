@@ -414,7 +414,7 @@ impl<'a> Tokenizer<'a> {
     }
 
     pub fn get_token(&mut self, stack : &Vec<StackFrame>, functions: &HashMap<String, FunctionStruct>) -> GetTokenReturn {
-        let tokens : HashMap<&str, i8> = HashMap::from([("fn", 0), ("term", 1), ("bool", 2), ("string", 3), ("wait", 4), ("println", 5), ("print", 6), ("compare", 7), ("number", 8), ("loop", 9), ("\\\\", 10), ("import", 11), ("asm", 12)]);
+        let tokens : HashMap<&str, i8> = HashMap::from([("fn", 0), ("term", 1), ("bool", 2),/* ("string", 3),*/ ("wait", 4), ("println", 5), ("print", 6), ("compare", 7), ("number", 8), ("loop", 9), ("\\\\", 10), ("import", 11), ("asm", 12)]);
 
         let mut res : String = String::new();
 
