@@ -3,7 +3,7 @@
 _start:
 
 
-    mov X1, #0
+    mov X1, #5
     str X1, [sp]
     sub sp, sp, #16
 
@@ -16,6 +16,17 @@ _start:
     mov X16, #4
     svc #0x80
 
+    mov W1, #5
+
+
+    ldr W2, [sp, #0]
+
+    cmp W1, W2
+
+    b.eq equal_0
+
+    bl continue_0
+equal_0:
     bl f_fn_test
 
     mov X0, #1
@@ -24,6 +35,13 @@ _start:
     mov X2, 13
     mov X16, #4
     svc #0x80
+
+
+
+    bl continue_0
+
+
+continue_0:
 
     mov X0, #0
     mov X16, #1
@@ -34,8 +52,23 @@ f_fn_test:
     sub sp, sp, #16
 
 
+    mov X1, #0
+    str X1, [sp]
+    sub sp, sp, #16
 
-    ldr X30, [sp, #16]
+
+    mov X1, #1
+    str X1, [sp]
+    sub sp, sp, #16
+
+
+
+    add sp, sp, #48
+
+    ldr X30, [sp]
+    
+    add sp, sp, #16
+
     ret
 .data
 new_line: .ascii "\n"

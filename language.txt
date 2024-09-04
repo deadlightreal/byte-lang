@@ -1,12 +1,15 @@
-number test = 0;
+number test = 5;
 
 fn fn_test() {
-
+    number num1 = 0;
+    number num2 = 1;
 }
 
 fn_test();
 println("after first");
-fn_test();
-println("after second");
-
+compare(5, test)
+.== {
+    fn_test();
+    println("after second");
+};
 term;

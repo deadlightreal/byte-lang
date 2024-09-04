@@ -106,7 +106,7 @@ _start:
         let tokenizer = Tokenizer::new(&func.content as &str);
         let got_offset = get_offset(stack.clone());
         stack.push(StackFrame{stack_items: HashMap::new()});
-        stack.last_mut().unwrap().stack_items.insert(String::from("return"), StackItem{ size: 16, offset: got_offset, variable: VariableType::Return() });
+        stack.last_mut().unwrap().stack_items.insert(String::from("stack-pointer"), StackItem{ size: 16, offset: got_offset, variable: VariableType::Return() });
         let text = handle_parsing(tokenizer,
             &mut stack,
             loop_number,
@@ -126,12 +126,18 @@ _start:
 
 {}
 
-    ldr X30, [sp, #{}]
+    add sp, sp, #{}
+
+    ldr X30, [sp]
+    
+    add sp, sp, #16
+
     ret
 "#,
             func.name, text, current_offset as u32 - got_offset
         )
         .expect("error writing to a file");
+        stack.pop();
         println!("{:?}", stack);
     }
 
