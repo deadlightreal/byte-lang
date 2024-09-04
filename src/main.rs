@@ -175,38 +175,6 @@ _start:
         index += 1;
     }
 
-    /*
-    // Write variables at the data section.
-    for item in variables.values() {
-        // Match the variable type.
-        match item {
-            VariableType::String(string) => {
-                write!(
-                    writer,
-                    "{}: .asciz \"{}\"\n{}_end:\n{}_length: .word {}\n",
-                    string.name.clone(),
-                    string.value,
-                    string.name,
-                    string.name,
-                    string.value.len()
-                )
-                .expect("Error Writing to a file");
-            }
-            VariableType::Number(number) => {
-                write!(writer, "{}: .word {}\n", number.name, number.value)
-                    .expect("error writing to file");
-            }
-            VariableType::Bool(bool) => {
-                let val: u8 = match bool.value {
-                    false => 0,
-                    true => 1,
-                };
-                write!(writer, "{}: .byte {}\n", bool.name, val).expect("error writing to file");
-            }
-        }
-    }
-    */
-
     // Save the file with new content.
     writer.flush().expect("Err Flushing To File");
 
@@ -270,11 +238,26 @@ fn handle_parsing(
                     }
                 }
             },
-            /*
             Token::DataBoolean(databoolean) => {
-                variables.insert(databoolean.name.clone(), VariableType::Bool(databoolean));
+                let ok_offset = get_offset(stack.clone());
+                let num : u8 = match databoolean.value {
+                    false => 0,
+                    true => 1
+                };
+                let stack_item : StackItem = StackItem{offset: ok_offset, size: 16, variable: VariableType::Bool(databoolean.clone())};
+             
+                *current_offset += 16;
+
+                parsed_text.push_str(&format!(r#"
+    mov X1, #{}
+    str X1, [sp]
+    sub sp, sp, #16
+
+"#, num));
+                let last = stack.last_mut().expect("error getting last mut from stack");
+                last.stack_items.insert(databoolean.name, stack_item);
+                println!("{:?}", stack);
             }
-            */
             Token::CallFunction(name) => {
                 parsed_text.push_str(&format!(
                     r#"    bl f_{}
@@ -323,7 +306,7 @@ fn handle_parsing(
                                 r#"
     ldr W{}, [sp, #{}]
 
-"#, 1 + index, variable.offset));
+"#, 1 + index, (*current_offset as u32 - 16) - variable.offset));
                         }
                         CompareType::None() => {
                             return Err(String::from("Compare type was not given"));

@@ -7,6 +7,21 @@ _start:
     str X1, [sp]
     sub sp, sp, #16
 
+
+    mov X1, #4
+    str X1, [sp]
+    sub sp, sp, #16
+
+
+    mov X1, #10
+    str X1, [sp]
+    sub sp, sp, #16
+
+
+    mov X1, #0
+    str X1, [sp]
+    sub sp, sp, #16
+
     bl f_fn_test
 
     mov X0, #1
@@ -19,7 +34,7 @@ _start:
     mov W1, #5
 
 
-    ldr W2, [sp, #0]
+    ldr W2, [sp, #48]
 
     cmp W1, W2
 

@@ -1,4 +1,7 @@
 number test = 5;
+number num3 = 4;
+number num4 = 10;
+bool booltest = false;
 
 fn fn_test() {
     number num1 = 0;
