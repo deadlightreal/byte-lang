@@ -8,7 +8,7 @@ mod compile_asm;
 mod datatypes;
 
 use compile_asm::compile_asm;
-use datatypes::{CompareType, FunctionStruct, StackItem, LoopStruct, Token, Tokenizer, VariableType, StackFrame};
+use datatypes::{CompareType, FunctionStruct, StackItem, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataNumber};
 
 fn main() {
     let command = std::env::args().nth(1).expect("Please Provide a command");
@@ -150,19 +150,8 @@ _start:
     write!(writer, ".data\n").expect("error writing to a file");
 
     // Create a new_line string that contains \n.
-    write!(writer, "new_line: .ascii \"\\n\"\nfn_end: .quad _start\n")
+    write!(writer, "new_line: .ascii \"\\n\"\n")
         .expect("Error Writing to a file");
-
-    let mut loop_index = 0;
-    for loop_struct in loops {
-        write!(
-            writer,
-            "l_{}_limit: .word {}\nl_{}_index: .word 0\nl_{}_return: .quad 0\n",
-            loop_index, loop_struct.limit, loop_index, loop_index
-        )
-        .expect("error writing to a file");
-        loop_index += 1;
-    }
 
     // Insert print strings into data section.
     for print_string in print_strings {
@@ -454,6 +443,9 @@ continue_{}:
                 loops.push(LoopStruct {
                     limit: loop_token.number as u32,
                 });
+                let got_offset = get_offset(stack.clone());
+                stack.last_mut().unwrap().stack_items.insert(format!("loop_{}_return", num), StackItem{variable: VariableType::Return(), offset: got_offset, size: 16});
+                stack.last_mut().unwrap().stack_items.insert(format!("loop_{}_index", num), StackItem{variable: VariableType::Number(DataNumber{name: format!("loop_{}_index", num), value: 0}), offset: got_offset+16, size: 16});
                 let new_tokenizer = Tokenizer::new(&loop_token.content as &str);
                 let compiled_content = handle_parsing(
                     new_tokenizer,
@@ -474,12 +466,15 @@ continue_{}:
 "#,
                             num
                         ));
+                        *current_offset += 32;
                         labels.push(format!(r#"
 l_{}_start:
-    adrp X19, l_{}_return@PAGE
-    add X19, X19, l_{}_return@PAGEOFF
+    str X30, [sp]
+    sub sp, sp, #16
 
-    str X30, [X19]
+    mov W1, #0
+    str W1, [sp]
+    sub sp, sp, #16
 
     b l_{}
 
@@ -487,30 +482,20 @@ l_{}:
 
 {}
 
-    adrp X13, l_{}_index@PAGE   
-    add X13, X13, l_{}_index@PAGEOFF
-    ldr W11, [X13]
+    ldr W11, [sp, #{}]
     add W11, W11, #1
-    str W11, [X13]
+    str W11, [sp, #{}]
 
-    adrp X14, l_{}_limit@PAGE
-    add X14, X14, l_{}_limit@PAGEOFF
-    ldr W12, [X14]
-
+    mov W12, #{}
     cmp W12, W11
     b.ne l_{}
-
-    mov W15, #0
-    str W15, [X13]
-
-    adrp X19, l_{}_return@PAGE
-    add X19, X19, l_{}_return@PAGEOFF
-
-    ldr X30, [X19]
+ 
+    ldr X30, [sp, #{}]
 
     ret
 
-"#, num, num, num, num, num, content, num, num, num, num, num, num, num))
+"#, num, num, num, content, ((*current_offset as u32) - stack.last().unwrap().stack_items[&format!("loop_{}_index", num)].offset), ((*current_offset as u32) - stack.last().unwrap().stack_items[&format!("loop_{}_index", num)].offset), loop_token.number, num, ((*current_offset as u32) - stack.last().unwrap().stack_items[&format!("loop_{}_return", num)].offset)));
+                        println!("{:?}", stack);
                     }
                     Err(err) => return Err(err),
                 }

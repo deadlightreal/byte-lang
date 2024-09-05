@@ -1,18 +1,9 @@
-number test = 5;
-number num3 = 4;
-number num4 = 10;
-bool booltest = false;
+number test_var = 0;
 
-fn fn_test() {
-    number num1 = 0;
-    number num2 = 1;
+loop(5) {
+    println("hi");
 }
 
-fn_test();
-println("after first");
-compare(booltest, false)
-.== {
-    fn_test();
-    println("after second");
-};
+println("hello");
+
 term;
