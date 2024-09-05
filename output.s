@@ -33,6 +33,11 @@ l_0_start:
 
 l_0:
 
+
+    mov X1, #0
+    str X1, [sp]
+    sub sp, sp, #16
+
     mov X0, #1
     adrp X1, print_string_0@PAGE
     add X1, X1, print_string_0@PAGEOFF
@@ -41,6 +46,8 @@ l_0:
     svc #0x80
 
 
+
+    add sp, sp, #16
 
     ldr W11, [sp, #16]
     add W11, W11, #1
@@ -51,6 +58,8 @@ l_0:
     b.ne l_0
  
     ldr X30, [sp, #32]
+
+    add sp, sp, #32
 
     ret
 

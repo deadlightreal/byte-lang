@@ -1,6 +1,7 @@
 number test_var = 0;
 
 loop(5) {
+    number testt = 0;
     println("hi");
 }
 

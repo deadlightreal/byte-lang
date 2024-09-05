@@ -446,6 +446,8 @@ continue_{}:
                 let got_offset = get_offset(stack.clone());
                 stack.last_mut().unwrap().stack_items.insert(format!("loop_{}_return", num), StackItem{variable: VariableType::Return(), offset: got_offset, size: 16});
                 stack.last_mut().unwrap().stack_items.insert(format!("loop_{}_index", num), StackItem{variable: VariableType::Number(DataNumber{name: format!("loop_{}_index", num), value: 0}), offset: got_offset+16, size: 16});
+                *current_offset += 32;
+                let offset_before = current_offset.clone();
                 let new_tokenizer = Tokenizer::new(&loop_token.content as &str);
                 let compiled_content = handle_parsing(
                     new_tokenizer,
@@ -466,7 +468,6 @@ continue_{}:
 "#,
                             num
                         ));
-                        *current_offset += 32;
                         labels.push(format!(r#"
 l_{}_start:
     str X30, [sp]
@@ -482,19 +483,23 @@ l_{}:
 
 {}
 
-    ldr W11, [sp, #{}]
+    add sp, sp, #{}
+
+    ldr W11, [sp, #16]
     add W11, W11, #1
-    str W11, [sp, #{}]
+    str W11, [sp, #16]
 
     mov W12, #{}
     cmp W12, W11
     b.ne l_{}
  
-    ldr X30, [sp, #{}]
+    ldr X30, [sp, #32]
+
+    add sp, sp, #32
 
     ret
 
-"#, num, num, num, content, ((*current_offset as u32) - stack.last().unwrap().stack_items[&format!("loop_{}_index", num)].offset), ((*current_offset as u32) - stack.last().unwrap().stack_items[&format!("loop_{}_index", num)].offset), loop_token.number, num, ((*current_offset as u32) - stack.last().unwrap().stack_items[&format!("loop_{}_return", num)].offset)));
+"#, num, num, num, content, *current_offset - offset_before, loop_token.number, num));
                         println!("{:?}", stack);
                     }
                     Err(err) => return Err(err),
