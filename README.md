@@ -1,5 +1,7 @@
 # Byte Lang
 
+## Byte Lang currently supports only ARM64 on macOS. Support for x86 and other architectures will be implemented later.
+
 **Byte Lang** is an emerging programming language designed to combine the low-level control of assembly language with the readability and structure of high-level languages. Currently in its early stages, Byte Lang offers a foundational set of commands and features aimed at high performance and clear, efficient programming.
 
 ## Features
