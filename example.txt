@@ -1,23 +1,11 @@
 number ten = 10;
 number five = 5;
-string printstring = "print";
 
-fn func() {
-    println("executed func");
-}
-
-func();
-
-compare(five, 5)
+compare(5, 5)
 .== {
-    wait(1);
-    println(printstring);
     println("five = 5");
 }
 .!= {
     println("five != 5");
 };
-
-print(printstring);
-
 term;

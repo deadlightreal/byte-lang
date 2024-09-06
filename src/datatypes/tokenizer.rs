@@ -23,6 +23,23 @@ impl<'a> Tokenizer<'a> {
         Self {input, position: 0}
     }
 
+    pub fn tokenize_all(&mut self, stack : Vec<StackFrame>, functions: HashMap<String, FunctionStruct>) -> Vec<Token> {
+        self.position = 0;
+
+        let mut res : Vec<Token> = Vec::new();
+
+        while self.position < self.input.len() {
+            let token = self.next_token(stack.clone(), functions.clone());
+            if token == Token::EOF {
+                println!("res: {:?}", res);
+                return res;
+            }
+            res.push(token);
+        }
+
+        return res;
+    }
+
     // Get next token.
     pub fn next_token(&mut self, stack : Vec<StackFrame>, functions: HashMap<String, FunctionStruct>) -> Token {
         self.skip_whitespace();
@@ -35,8 +52,6 @@ impl<'a> Tokenizer<'a> {
             // Percentage compiled.
             let percentage = (self.position as f64 / self.input.len() as f64) * 1000.0;
             let rounded_percentage = percentage.round() / 10.0;
-
-            println!("{}%", rounded_percentage);
 
             match token_return {
                 GetTokenReturn::Instruction(token) => { 
@@ -220,6 +235,7 @@ impl<'a> Tokenizer<'a> {
                                 self.position += 1;
                                 // Get both inputs from compare(input1, input2);.
                                 let compares : Result<[CompareType; 2], String> = self.get_compare_args(stack);
+
                                 match compares {
                                     Ok(compare) => {
                                         // Check if both inputs are numbers.
@@ -421,7 +437,6 @@ impl<'a> Tokenizer<'a> {
         while self.position < self.input.len() {
             match self.current_char() {
                 '(' | ')' | ';' | ' ' | '<' | '>' | '\n' => {
-                    println!("gotten token:{}|", res);
                    let token = tokens.get(&res as &str);
                     match token {
                         Some(token) => {

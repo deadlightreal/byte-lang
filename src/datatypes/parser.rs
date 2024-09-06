@@ -1,205 +1,59 @@
 use std::collections::HashMap;
-use std::io::{BufWriter, Write};
-use std::path::PathBuf;
-use std::process::Command;
 use std::{fs::File, io::Read};
 
-mod compile_asm;
-mod datatypes;
+use super::{CompareType, FunctionStruct, StackItem, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataNumber};
 
-use compile_asm::compile_asm;
-use datatypes::parser::{get_offset, parse_code};
-use datatypes::{FunctionStruct, StackItem, LoopStruct, Token, Tokenizer, VariableType, StackFrame};
-
-fn main() {
-    let command = std::env::args().nth(1).expect("Please Provide a command");
-    match command.as_str() {
-        "run" => {
-            run_file();
-        }
-        _ => {}
-    }
+pub struct Parser<'a> {
+    input: &'a Vec<Token>,
 }
 
-fn run_file() {
-    // Getting second arg that should provide location of file that they want to run.
-    let file_location = std::env::args()
-        .nth(2)
-        .expect("Please Provide File Location");
+impl<'a> Parser<'a> {
+    pub fn new(input: &'a Vec<Token>) -> Self {
+        return Self{input};
+    }
 
-    // Open the file.
-    let mut file = File::open(file_location).expect("Error Oppening File");
+    pub fn parse_all(
+        &mut self,
+        stack: &mut Vec<StackFrame>,
+        loop_number: u32,
+        print_strings: &mut Vec<String>,
+        loops: &mut Vec<LoopStruct>,
+        compare_number: &mut u32,
+        functions: &mut HashMap<String, FunctionStruct>,
+        labels: &mut Vec<String>,
+        current_offset: &mut u64,
+        ) -> Result<String, String> {
+        let mut res : String = String::new();
 
-    let mut content = String::new();
-
-    file.read_to_string(&mut content)
-        .expect("Error Reading As String");
-
-    // Get the path that user is in when running the run command!
-    let current_dir = std::env::current_dir().expect("Error getting current Path");
-
-    // Create a file that will contain output assembly code.
-    let mut new_file_location = PathBuf::from(current_dir.clone());
-    new_file_location.push("output.s");
-    let created_file = File::create(new_file_location.clone()).expect("Error creating File");
-
-    // Create a writer for assembly code.
-    let mut writer = BufWriter::new(created_file);
-
-    // Compile Code.
-    //as -o output.o output.s
-    //ld -macos_version_min 11.0.0 -o output output.o -lSystem -syslibroot `xcrun -sdk macosx --show-sdk-path` -e _start -arch arm64
-
-    // Create _start function.
-    write!(
-        writer,
-        r#".global _start
-.align 2
-_start:
-
-"#
-    )
-    .expect("Error Writing File");
-
-    // Store strings used to print.
-    let mut print_strings: Vec<String> = Vec::new();
-
-    let mut current_offset : u64 = 0;
-
-    let mut labels : Vec<String> = Vec::new();
-
-    // Variables like numbers and strings.
-    let mut stack : Vec<StackFrame> = Vec::new();
-    stack.push(StackFrame{stack_items: HashMap::new()});
-
-    let mut functions: HashMap<String, FunctionStruct> = HashMap::new();
-
-    // Store number of loops made.
-    let loop_number: u32 = 0;
-    let mut compare_number: u32 = 0;
-
-    let mut loops: Vec<LoopStruct> = Vec::new();
-
-    let parsed_text = parse_code(
-        &content as &str,
-        &mut stack,
-        loop_number,
-        &mut print_strings,
-        &mut loops,
-        &mut compare_number,
-        &mut functions,
-        &mut labels,
-        &mut current_offset,
-    );
-
-    match parsed_text {
-        Ok(text) => write!(writer, "{}", text).expect("error writing to a file"),
-        Err(err) => {
-            println!("{}", err);
-            return;
+        for item in self.input.iter() {
+            match self.parse(item, stack, loop_number, print_strings, loops, compare_number, functions, labels, current_offset) {
+                Ok(parsed) => {
+                    res.push_str(&parsed as &str);
+                },
+                Err(err) => {
+                    return Err(err);
+                }
+            };
         }
+
+        return Ok(res);
     }
 
-    for func in functions.clone().values() {
-        let got_offset = get_offset(stack.clone());
-        stack.push(StackFrame{stack_items: HashMap::new()});
-        stack.last_mut().unwrap().stack_items.insert(String::from("stack-pointer"), StackItem{ size: 16, offset: got_offset, variable: VariableType::Return() });
-        let text = parse_code(
-            &func.content as &str,
-            &mut stack,
-            loop_number,
-            &mut print_strings,
-            &mut loops,
-            &mut compare_number,
-            &mut functions,
-            &mut labels,
-            &mut current_offset,
-        ).unwrap();
-        current_offset += 16;
-        write!(
-            writer,
-            r#"f_{}:
-    str X30, [sp]
-    sub sp, sp, #16
-
-{}
-
-    add sp, sp, #{}
-
-    ldr X30, [sp]
-
-    ret
-"#,
-            func.name, text, current_offset as u32 - got_offset
-            )
-        .expect("error writing to a file");
-        stack.pop();
-        println!("{:?}", stack);
-    }
-
-    let mut index = 0;
-
-    for item in labels {
-        write!(writer, "{}", item).expect("error writing to a file");
-    }
-
-    write!(writer, ".data\n").expect("error writing to a file");
-
-    // Create a new_line string that contains \n.
-    write!(writer, "new_line: .ascii \"\\n\"\n")
-        .expect("Error Writing to a file");
-
-    // Insert print strings into data section.
-    for print_string in print_strings {
-        write!(
-            writer,
-            "print_string_{}: .ascii \"{}\"\n",
-            index, print_string
-        )
-        .expect("Error writing to a file");
-        index += 1;
-    }
-
-    // Save the file with new content.
-    writer.flush().expect("Err Flushing To File");
-
-    // Compile the assembly file.
-    compile_asm(current_dir);
-
-    println!("Starting App \n \n \n--------------------------------------------------------------\n \n \n");
-
-    // Run the app.
-    let status = Command::new("./output")
-        .status()
-        .expect("error executing command");
-
-    // Return if failed to run.
-    if status.success() == false {
-        println!("error running program");
-        return;
-    }
-}
-
-/*
-fn handle_parsing(
-    mut tokenizer: Tokenizer,
-    stack: &mut Vec<StackFrame>,
-    mut loop_number: u32,
-    print_strings: &mut Vec<String>,
-    loops: &mut Vec<LoopStruct>,
-    compare_number: &mut u32,
-    functions: &mut HashMap<String, FunctionStruct>,
-    labels: &mut Vec<String>,
-    current_offset: &mut u64,
-    ) -> Result<String, String> {
-    let mut parsed_text = String::new();
-
-    loop {
-        let token: Token = tokenizer.next_token(stack.clone(), functions.clone());
-
+    pub fn parse(
+        &mut self,
+        token : &Token,
+        stack: &mut Vec<StackFrame>,
+        mut loop_number: u32,
+        print_strings: &mut Vec<String>,
+        loops: &mut Vec<LoopStruct>,
+        compare_number: &mut u32,
+        functions: &mut HashMap<String, FunctionStruct>,
+        labels: &mut Vec<String>,
+        current_offset: &mut u64,
+        ) -> Result<String, String> {
         match token {
             Token::Asm(asm) => {
-                parsed_text.push_str(&asm);
+                return Ok(asm.to_string());
             },
             Token::Import(file_location) => {
                 let mut file = File::open(file_location).expect("error opening file");
@@ -207,16 +61,12 @@ fn handle_parsing(
                 let mut file_content = String::new();
 
                 file.read_to_string(&mut file_content).expect("Error reading as string");
-
-                println!("{}", file_content);
                 
-                let file_tokenizer = Tokenizer::new(&file_content as &str);
-
-                let parsed_file_code = handle_parsing(file_tokenizer, stack, loop_number, print_strings, loops, compare_number, functions, labels, current_offset);
+                let parsed_file_code = parse_code(&file_content as &str, stack, loop_number, print_strings, loops, compare_number, functions, labels, current_offset);
 
                 match parsed_file_code {
                     Ok(code) => {
-                        parsed_text.push_str(&code);
+                        return Ok(code);     
                     },
                     Err(err) => {
                         return Err(err);
@@ -233,18 +83,18 @@ fn handle_parsing(
              
                 *current_offset += 16;
 
-                parsed_text.push_str(&format!(r#"
+                let last = stack.last_mut().expect("error getting last mut from stack");
+                last.stack_items.insert(databoolean.name.clone(), stack_item);
+                
+                return Ok(format!(r#"
     mov X1, #{}
     str X1, [sp]
     sub sp, sp, #16
 
 "#, num));
-                let last = stack.last_mut().expect("error getting last mut from stack");
-                last.stack_items.insert(databoolean.name, stack_item);
-                println!("{:?}", stack);
             }
             Token::CallFunction(name) => {
-                parsed_text.push_str(&format!(
+                return Ok(format!(
                     r#"    bl f_{}
 
 "#,
@@ -255,29 +105,31 @@ fn handle_parsing(
                 functions.insert(
                     func.name.clone(),
                     FunctionStruct {
-                        content: func.content,
-                        name: func.name,
+                        content: func.content.clone(),
+                        name: func.name.clone(),
                     },
                 );
             }
             Token::Terminate() => {
-                parsed_text.push_str(
+                return Ok(
                     r#"    mov X0, #0
     mov X16, #1
     svc #0x80
 
-"#,
-                );
+"#.to_string());
             }
             Token::Compare(compare_args) => {
+                let mut res : String = String::new();
+
                 let current_number = compare_number.clone();
                 *compare_number += 1;
 
                 let mut index = 0;
-                for arg in compare_args.compare_types {
+                for arg in compare_args.compare_types.clone() {
+                    println!("compare arg: {:?}", arg.clone());
                     match arg {
                         CompareType::Number(num) => {
-                            parsed_text.push_str(&format!(
+                            res.push_str(&format!(
                                 r#"    mov W{}, #{}
 
 "#,
@@ -290,24 +142,24 @@ fn handle_parsing(
                                 true => 1,
                                 false => 0
                             };
-                            parsed_text.push_str(&format!(
+                            res.push_str(&format!(
 r#"    mov W{}, #{}
 
 "#, 1 + index, num));
                         }
                         CompareType::VariableBool(variable) => {
-                            parsed_text.push_str(&format!(
+                            res.push_str(&format!(
                                 r#"
     ldr W{}, [sp, #{}]
 
-"#, 1 + index, (*current_offset as u32 - 16) - variable.offset));
+"#, 1 + index, (*current_offset as u32) - variable.offset));
                         }
                         CompareType::VariableNumber(variable) => {
-                            parsed_text.push_str(&format!(
+                            res.push_str(&format!(
                                 r#"
     ldr W{}, [sp, #{}]
 
-"#, 1 + index, (*current_offset as u32 - 16) - variable.offset));
+"#, 1 + index, (*current_offset as u32) - variable.offset));
                         }
                         CompareType::None() => {
                             return Err(String::from("Compare type was not given"));
@@ -316,7 +168,7 @@ r#"    mov W{}, #{}
                     index += 1;
                 }
 
-                parsed_text.push_str(&format!(
+                res.push_str(&format!(
                     r#"    cmp W1, W2
 
 "#
@@ -353,7 +205,7 @@ r#"    mov W{}, #{}
                         _ => return Err(String::from("Invalid compare syntax.")),
                     }
 
-                    parsed_text.push_str(&format!(
+                    res.push_str(&format!(
                         r#"    b.{} {}_{}
 
 "#,
@@ -361,14 +213,13 @@ r#"    mov W{}, #{}
                     ));
                 }
 
-                parsed_text.push_str(&format!(
+                res.push_str(&format!(
                     r#"    bl continue_{}
 "#,
                     current_number
                 ));
 
-                for symbol in compare_args.symbols {
-                    let new_tokenizer = Tokenizer::new(&symbol.function_content as &str);
+                for symbol in compare_args.symbols.clone() {
                     let symbol_type: String = match &symbol.symbol as &str {
                         "==" => String::from("equal"),
                         "!=" => String::from("not_equal"),
@@ -380,8 +231,8 @@ r#"    mov W{}, #{}
                             return Err(String::from("unknown compare symbol"));
                         }
                     };
-                    let parsed_compare_text = handle_parsing(
-                        new_tokenizer,
+                    let parsed_compare_text = parse_code(
+                        &symbol.function_content as &str,
                         stack,
                         loop_number,
                         print_strings,
@@ -393,7 +244,7 @@ r#"    mov W{}, #{}
                     );
                     match parsed_compare_text {
                         Ok(content) => {
-                            parsed_text.push_str(&format!(
+                            res.push_str(&format!(
                                 r#"{}_{}:
 {}
 
@@ -408,7 +259,7 @@ r#"    mov W{}, #{}
                     };
                 }
 
-                parsed_text.push_str(&format!(
+                res.push_str(&format!(
                     r#"
 
 continue_{}:
@@ -416,6 +267,8 @@ continue_{}:
 "#,
                     current_number
                 ));
+
+                return Ok(res);
             }
             Token::Number(number) => {
                 let ok_offset = get_offset(stack.clone());
@@ -423,15 +276,15 @@ continue_{}:
              
                 *current_offset += 16;
 
-                parsed_text.push_str(&format!(r#"
+                let res = format!(r#"
     mov X1, #{}
     str X1, [sp]
     sub sp, sp, #16
 
-"#, number.value));
+"#, number.value);
                 let last = stack.last_mut().expect("error getting last mut from stack");
-                last.stack_items.insert(number.name, stack_item);
-                println!("{:?}", stack);
+                last.stack_items.insert(number.name.clone(), stack_item);
+                return Ok(res);
             }
             Token::Loop(loop_token) => {
                 let num = loop_number;
@@ -445,9 +298,8 @@ continue_{}:
                 *current_offset += 32;
                 let stack_last_before = stack.last().unwrap().clone();
                 let offset_before = current_offset.clone();
-                let new_tokenizer = Tokenizer::new(&loop_token.content as &str);
-                let compiled_content = handle_parsing(
-                    new_tokenizer,
+                let compiled_content = parse_code(
+                    &loop_token.content as &str,
                     stack,
                     loop_number,
                     print_strings,
@@ -459,12 +311,6 @@ continue_{}:
                 );
                 match compiled_content {
                     Ok(content) => {
-                        parsed_text.push_str(&format!(
-                            r#"    bl l_{}_start
-
-"#,
-                            num
-                        ));
                         labels.push(format!(r#"
 l_{}_start:
     str X30, [sp]
@@ -497,7 +343,6 @@ l_{}:
     ret
 
 "#, num, num, num, content, *current_offset - offset_before, loop_token.number, num));
-                        println!("{:?}", stack);
                         stack.last_mut().unwrap().stack_items.remove(&format!("loop_{}_return", num));
                         stack.last_mut().unwrap().stack_items.remove(&format!("loop_{}_index", num));
                         *current_offset -= 32;
@@ -511,6 +356,10 @@ l_{}:
                                 }
                             }
                         }
+                        return Ok(format!(
+                            r#"    bl l_{}_start
+
+"#, num))
                     }
                     Err(err) => return Err(err),
                 }
@@ -521,7 +370,7 @@ l_{}:
                 // For future devs: please add a feature to wait .. of nanoseconds.
 
                 // Wait .. seconds and then continue to execute code.
-                parsed_text.push_str(&format!(
+                return Ok(format!(
                     r#"    mov x8, {}
     stp x8, xzr, [sp, -0x10]!
     mov x0, sp
@@ -535,7 +384,9 @@ l_{}:
             }
             Token::PrintlnString(print_string) => {
                 // Call print instruction with the print string and add \n to it.
-                parsed_text.push_str(&format!(
+                print_strings.push(print_string.value.clone());
+                
+                return Ok(format!(
                     r#"    mov X0, #1
     adrp X1, {}@PAGE
     add X1, X1, {}@PAGEOFF
@@ -544,15 +395,17 @@ l_{}:
     svc #0x80
 
 "#,
-                    format!("print_string_{}", print_strings.len()),
-                    format!("print_string_{}", print_strings.len()),
+                    format!("print_string_{}", print_strings.len() - 1),
+                    format!("print_string_{}", print_strings.len() - 1),
                     print_string.length + 1
                 ));
-                print_strings.push(print_string.value);
             }
             Token::PrintString(print_string) => {
                 // Same as printlnString just don't add \n to print_string.
-                parsed_text.push_str(&format!(
+                
+                print_strings.push(print_string.value.clone());
+
+                return Ok(format!(
                     r#"    mov X0, #1
     adrp X1, {}@PAGE
     add X1, X1, {}@PAGEOFF
@@ -561,11 +414,10 @@ l_{}:
     svc #0x80
 
 "#,
-                    format!("print_string_{}", print_strings.len()),
-                    format!("print_string_{}", print_strings.len()),
+                    format!("print_string_{}", print_strings.len() - 1),
+                    format!("print_string_{}", print_strings.len() - 1),
                     print_string.length
                 ));
-                print_strings.push(print_string.value);
             }
             /*
             Token::PrintVariable(name) => {
@@ -656,20 +508,82 @@ l_{}:
             */
             Token::Error(err) => {
                 // Thow an error and return.
-                return Err(err);
+                return Err(err.to_string());
             }
             Token::EOF => {
                 // Break if it is end of file.
                 println!("Completed!!!");
-                break;
+                return Ok(String::new());
             }
             Token::Comment => {
                 // Do nothing if it is comment
             }
             _ => {}
         }
+
+        
+        Ok(String::new())
+    }
+}
+
+pub fn parse_code(
+    input: &str,
+    stack: &mut Vec<StackFrame>,
+    loop_number: u32,
+    print_strings: &mut Vec<String>,
+    loops: &mut Vec<LoopStruct>,
+    compare_number: &mut u32,
+    functions: &mut HashMap<String, FunctionStruct>,
+    labels: &mut Vec<String>,
+    current_offset: &mut u64,
+    ) -> Result<String, String> {
+    let mut tokenizer = Tokenizer::new(input);
+    
+    let mut res = String::new();
+
+    loop {
+        let token = tokenizer.next_token(stack.clone(), functions.clone());
+        match token {
+            Token::EOF => break,
+            Token::Error(err) => return Err(err),
+            _ => {
+                let mut token_vec : Vec<Token> = Vec::new();
+                token_vec.push(token.clone());
+                let mut parser = Parser::new(&token_vec);
+                let result = parser.parse(&token, stack, loop_number, print_strings, loops, compare_number, functions, labels, current_offset).unwrap();
+                res.push_str(&result);
+            }
+        }
+    }
+    return Ok(res);
+}
+
+pub fn get_offset(stack : Vec<StackFrame>) -> u32 {
+    let last_stack = stack.last().expect("error getting stack");
+
+    let mut biggest_offset = 0;
+
+    for item in last_stack.stack_items.values() {
+        if item.offset >= biggest_offset {
+            biggest_offset = item.offset + item.size;
+        }
     }
 
-    return Ok(parsed_text);
+    if biggest_offset == 0 {
+        if stack.len() >= 2 {
+            let stack_before = stack.get(stack.len() - 1).unwrap();
+
+            for item in stack_before.stack_items.values() {
+                if item.offset > biggest_offset {
+                    biggest_offset = item.offset + item.size;
+                }
+            }
+
+            return biggest_offset;
+        } else {
+            return 0;
+        }
+    } else {
+        return biggest_offset;
+    }
 }
-*/
