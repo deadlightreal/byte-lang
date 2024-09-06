@@ -1,4 +1,5 @@
 number test_var = 0;
+number test_var_2 = 10;
 
 fn printstring() {
     number test_num = 10;
@@ -11,6 +12,10 @@ loop(2) {
     }
 }
 
-println("hello");
+compare(test_var, 0)
+.== {
+    println("equals");
+};
 
+println("hello");
 term;

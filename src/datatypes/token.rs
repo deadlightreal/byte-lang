@@ -6,7 +6,7 @@ use super::loop_token::LoopToken;
 use super::function_struct::FunctionStruct;
 use super::data_boolean::DataBoolean;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     PrintVariable(String),
     PrintlnVariable(String),
