@@ -1,8 +1,14 @@
 number test_var = 0;
 
-loop(5) {
-    number testt = 0;
-    println("hi");
+fn printstring() {
+    number test_num = 10;
+    println("printing");
+}
+
+loop(2) {
+    loop(3) {
+        printstring();
+    }
 }
 
 println("hello");

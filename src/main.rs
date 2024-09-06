@@ -129,13 +129,11 @@ _start:
     add sp, sp, #{}
 
     ldr X30, [sp]
-    
-    add sp, sp, #16
 
     ret
 "#,
             func.name, text, current_offset as u32 - got_offset
-        )
+            )
         .expect("error writing to a file");
         stack.pop();
         println!("{:?}", stack);
@@ -447,6 +445,7 @@ continue_{}:
                 stack.last_mut().unwrap().stack_items.insert(format!("loop_{}_return", num), StackItem{variable: VariableType::Return(), offset: got_offset, size: 16});
                 stack.last_mut().unwrap().stack_items.insert(format!("loop_{}_index", num), StackItem{variable: VariableType::Number(DataNumber{name: format!("loop_{}_index", num), value: 0}), offset: got_offset+16, size: 16});
                 *current_offset += 32;
+                let stack_last_before = stack.last().unwrap().clone();
                 let offset_before = current_offset.clone();
                 let new_tokenizer = Tokenizer::new(&loop_token.content as &str);
                 let compiled_content = handle_parsing(
@@ -501,6 +500,19 @@ l_{}:
 
 "#, num, num, num, content, *current_offset - offset_before, loop_token.number, num));
                         println!("{:?}", stack);
+                        stack.last_mut().unwrap().stack_items.remove(&format!("loop_{}_return", num));
+                        stack.last_mut().unwrap().stack_items.remove(&format!("loop_{}_index", num));
+                        *current_offset -= 32;
+                        for item in stack.last().unwrap().stack_items.clone().iter() {
+                            let item_from_stack = stack_last_before.stack_items.get(item.0);
+                            match item_from_stack {
+                                Some(_) => {},
+                                None => {
+                                    stack.last_mut().unwrap().stack_items.remove(item.0);
+                                    *current_offset -= item.1.size as u64;
+                                }
+                            }
+                        }
                     }
                     Err(err) => return Err(err),
                 }
