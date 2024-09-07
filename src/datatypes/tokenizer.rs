@@ -1,4 +1,4 @@
-use super::{Token, DataString, PrintString, DataBoolean, StackItem, StackFrame, FunctionStruct, DataNumber, VariableType, LoopToken, Compare, CompareType, CompareSymbol};
+use super::{Token, DataString, PrintString, FunctionArg, ValueType, ArgType, DataBoolean, StackFrame, FunctionStruct, DataNumber, VariableType, LoopToken, Compare, CompareType, CompareSymbol};
 use std::num::ParseFloatError;
 use std::collections::HashMap;
 
@@ -60,7 +60,13 @@ impl<'a> Tokenizer<'a> {
                         0 => {
                             self.skip_whitespace();
                             let fn_name = self.get_function_name();
-                            self.handle_function_args();
+                            if self.current_char() != '(' {return Token::Error(String::from("Expected ( after fn"))};
+                            self.position += 1;
+                            let fn_args = self.get_function_args_creating();
+                            let ok_args = match fn_args {
+                                Ok(args) => args,
+                                Err(err) => return Token::Error(err),
+                            };
                             self.skip_whitespace();
                             if self.current_char() == '{' {
                                 self.position += 1;
@@ -398,9 +404,7 @@ impl<'a> Tokenizer<'a> {
                     if self.current_char() != '(' {
                         return Token::Error(String::from("Expected ( after calling function"));
                     }
-                    self.position += 1;
-                    // Add args later.
-                    self.position += 1;
+                    let args = self.get_function_args(stack);
                     if self.current_char() != ';' {
                         return Token::Error(String::from("Expected ; after calling function"));
                     }
@@ -427,6 +431,52 @@ impl<'a> Tokenizer<'a> {
         }
 
         return res;
+    }
+
+    pub fn get_function_args_creating(&mut self) -> Result<Vec<ArgType>, String> {
+        let mut args : Vec<ArgType> = Vec::new();
+
+        loop {
+            if self.current_char() == ')' {
+                self.position += 1;
+                break;
+            } else if self.current_char() == ',' {self.position += 1;};
+
+            self.skip_whitespace();
+
+            let mut arg_type : String = String::new();
+            let mut arg_name : String = String::new();
+
+            loop {
+                if self.current_char().is_whitespace() {
+                    self.skip_whitespace();
+                    break;
+                }
+                arg_type.push(self.current_char());
+                self.position += 1;
+            }
+
+            loop {
+                if self.current_char() == ',' || self.current_char() == ' ' || self.current_char() == ')' {
+                    self.skip_whitespace();
+                    break;
+                } else {
+                    arg_name.push(self.current_char());
+                    self.position += 1;
+                }
+            }
+
+            let arg = match &arg_type as &str {
+                "bool" => ArgType::Bool(arg_name),
+                "number" => ArgType::Number(arg_name),
+                "string" => ArgType::String(arg_name),
+                _ => {return Err(String::from("Invalid Arg Type!!!"))}
+            };
+
+            args.push(arg);
+        }
+
+        return Ok(args);
     }
 
     pub fn get_token(&mut self, stack : &Vec<StackFrame>, functions: &HashMap<String, FunctionStruct>) -> GetTokenReturn {
@@ -680,18 +730,79 @@ impl<'a> Tokenizer<'a> {
         return num_result;
     }
 
-    // Handle function arguments - does nothing for now.
-    pub fn handle_function_args(&mut self) {
-        if self.current_char() == '(' {
-            self.position += 1;
+    // Handle function arguments.
+    pub fn get_function_args(&mut self, stack : Vec<StackFrame>) -> Result<Vec<FunctionArg>, String> {
+        let mut args : Vec<FunctionArg> = Vec::new();
+
+        let last_frame : StackFrame = stack.last().unwrap().clone();
+
+        if self.current_char() != '(' {
+            println!("Expected Arguments After Function Name!!");
+        }
+
+        self.position += 1;
+
+        while self.position < self.input.len() {
+            let mut res : String = String::new();
+
+            self.skip_whitespace();
+
+            loop {
+                if self.current_char() == ',' || self.current_char() == ')' || self.current_char() == ' ' {
+                    if let Some(var) = last_frame.stack_items.get(&res) {
+                        args.push(FunctionArg::Variable(var.clone()));
+                        if self.current_char() == ')' {break;} else {
+                            self.position += 1;
+                            break;
+                        }
+                    } else {
+                        match &res as &str {
+                            "true" => args.push(FunctionArg::Value(ValueType::Boolean(true))),
+                            "false" => args.push(FunctionArg::Value(ValueType::Boolean(false))),
+                            _ => {
+                                let number_check = self.validate_number_from_string(res.clone());
+                                if number_check {
+                                    let num_from_str : i64 = res.parse::<i64>().unwrap();
+                                    args.push(FunctionArg::Value(ValueType::Number(num_from_str)));
+                                } else {
+                                    return Err(String::from("Invalid Arg"));
+                                }
+                            },
+                        }
+                    }
+                    // return string or number or bool
+                    break;
+                } else if self.current_char() == '"' {
+                    let mut str : String = String::new();
+
+                    self.position += 1;
+
+                    while self.position < self.input.len() {
+                        if self.current_char() == '"' {
+                            self.position += 1;
+                            break;
+                        }
+
+                        str.push(self.current_char());
+                        self.position += 1;
+                    }
+
+                    args.push(FunctionArg::Value(ValueType::String(str)))
+                } else {
+                    res.push(self.current_char());
+                    self.position += 1;
+                }
+            }
+            
             if self.current_char() == ')' {
                 self.position += 1;
-            } else {
-
+                break;
             }
-        } else {
-            println!("Expected Arguments After Function Name!!")
         }
+
+        println!("function args: {:?}", args);
+
+        return Ok(args);
     }
 
     // Get name from function.

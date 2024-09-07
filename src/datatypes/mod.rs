@@ -14,6 +14,9 @@ pub mod data_boolean;
 pub mod stack_item;
 pub mod stack_frame;
 pub mod parser;
+pub mod function_arg;
+pub mod value_type;
+pub mod arg_type;
 
 pub use {
     data_string::DataString,
@@ -32,4 +35,7 @@ pub use {
     stack_frame::StackFrame,
     stack_item::StackItem,
     parser::Parser,
+    function_arg::FunctionArg,
+    value_type::ValueType,
+    arg_type::ArgType,
 };
