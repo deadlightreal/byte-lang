@@ -9,7 +9,7 @@ mod datatypes;
 
 use compile_asm::compile_asm;
 use datatypes::parser::{get_offset, parse_code};
-use datatypes::{FunctionStruct, StackItem, LoopStruct, Token, Tokenizer, VariableType, StackFrame};
+use datatypes::{FunctionStruct, ArgType, StackItem, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataBoolean, DataNumber};
 
 fn main() {
     let command = std::env::args().nth(1).expect("Please Provide a command");
@@ -100,10 +100,30 @@ _start:
         }
     }
 
+    let mut arg_size : u16 = 0;
+
     for func in functions.clone().values() {
-        let got_offset = get_offset(stack.clone());
         stack.push(StackFrame{stack_items: HashMap::new()});
+        for arg in func.args.clone() {
+            let offset = get_offset(stack.clone());
+            match arg {
+                ArgType::Bool(name) => {
+                    stack.last_mut().unwrap().stack_items.insert(name.clone(), StackItem{offset, size: 16, variable: VariableType::Bool(DataBoolean{name, value: false})});
+                    current_offset += 16;
+                    arg_size += 16;
+                },
+                ArgType::Number(name) => {
+                    stack.last_mut().unwrap().stack_items.insert(name.clone(), StackItem{offset, size: 16, variable: VariableType::Number(DataNumber{name, value: 0})});
+                    current_offset += 16;
+                    arg_size += 16;
+                }
+                _ => {},
+            };
+        };
+        let got_offset = get_offset(stack.clone());
+        println!("stack: {:?}", stack.last().unwrap());
         stack.last_mut().unwrap().stack_items.insert(String::from("stack-pointer"), StackItem{ size: 16, offset: got_offset, variable: VariableType::Return() });
+        current_offset += 16;
         let text = parse_code(
             &func.content as &str,
             &mut stack,
@@ -115,7 +135,6 @@ _start:
             &mut labels,
             &mut current_offset,
         ).unwrap();
-        current_offset += 16;
         write!(
             writer,
             r#"f_{}:
@@ -128,9 +147,11 @@ _start:
 
     ldr X30, [sp]
 
+    add sp, sp, #{}
+
     ret
 "#,
-            func.name, text, current_offset as u32 - got_offset
+            func.name, text, current_offset as u32 - got_offset, arg_size
             )
         .expect("error writing to a file");
         stack.pop();

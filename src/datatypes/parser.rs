@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::{fs::File, io::Read};
 
-use super::{CompareType, FunctionStruct, StackItem, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataNumber};
+use super::{CompareType, FunctionStruct, StackItem, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataNumber, ArgType, FunctionArg, ValueType};
 
 pub struct Parser<'a> {
     input: &'a Vec<Token>,
@@ -93,13 +93,69 @@ impl<'a> Parser<'a> {
 
 "#, num));
             }
-            Token::CallFunction(name) => {
-                return Ok(format!(
+            Token::CallFunction(func) => {
+                let mut res = String::new();
+                let mut offset_added : u16 = 0;
+                for arg in func.args.clone() {
+                    match arg {
+                        FunctionArg::Value(val) => {
+                            match val {
+                                ValueType::Number(num) => {
+                                    res.push_str(&format!(r#"
+    mov X1, #{}
+    str X1, [sp]
+    sub sp, sp, #16
+"#, num));
+                                    offset_added += 16;
+                                },
+                                ValueType::Boolean(bool) => {
+                                    let num : u8 = match bool {
+                                        false => 0,
+                                        true => 1,
+                                    };
+                                    res.push_str(&format!(r#"
+    mov X1, #{}
+    str X1, [sp]
+    sub sp, sp, #16
+"#, num));
+                                    offset_added += 16;
+                                },
+                                _ => {}
+                            }
+                        },
+                        FunctionArg::Variable(var) => {
+                            match var.variable {
+                                VariableType::Number(num) => {
+                                    let var_offset = stack.last().unwrap().stack_items.get(&num.name).unwrap();
+                                    println!("var offset {:?}", var_offset.offset.clone());
+                                    res.push_str(&format!(r#"
+    ldr X1, [sp, #{}]
+    str X1, [sp]
+    sub sp, sp, #16
+"#, (offset_added as u64 + *current_offset) - var_offset.offset as u64));
+                                    offset_added += 16;
+                                },
+                                VariableType::Bool(bool) => {
+                                    let var_offset = stack.last().unwrap().stack_items.get(&bool.name).unwrap();
+                                    res.push_str(&format!(r#"
+    ldr X1, [sp, #{}]
+    str X1, [sp]
+    sub sp, sp, #16
+"#, (offset_added as u64 + *current_offset) - var_offset.offset as u64));
+                                    offset_added += 16;
+                                },
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                res.push_str(&format!(
                     r#"    bl f_{}
 
 "#,
-                    name
+                    func.function.name
                 ));
+                return Ok(res);
             }
             Token::Function(func) => {
                 functions.insert(
@@ -107,6 +163,7 @@ impl<'a> Parser<'a> {
                     FunctionStruct {
                         content: func.content.clone(),
                         name: func.name.clone(),
+                        args: func.args.clone(),
                     },
                 );
             }
@@ -571,11 +628,11 @@ pub fn get_offset(stack : Vec<StackFrame>) -> u32 {
 
     if biggest_offset == 0 {
         if stack.len() >= 2 {
-            let stack_before = stack.get(stack.len() - 1).unwrap();
-
-            for item in stack_before.stack_items.values() {
-                if item.offset > biggest_offset {
-                    biggest_offset = item.offset + item.size;
+            for frame in stack.iter() {
+                for item in frame.stack_items.values() {
+                    if item.offset > biggest_offset {
+                        biggest_offset = item.offset + item.size;
+                    }
                 }
             }
 

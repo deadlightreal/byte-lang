@@ -5,6 +5,7 @@ use super::compare::Compare;
 use super::loop_token::LoopToken;
 use super::function_struct::FunctionStruct;
 use super::data_boolean::DataBoolean;
+use super::call_function::CallFunction;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
@@ -22,7 +23,7 @@ pub enum Token {
     Compare(Compare),
     Terminate(),
     Function(FunctionStruct),
-    CallFunction(String),
+    CallFunction(CallFunction),
     DataBoolean(DataBoolean),
     Import(String),
     Asm(String),

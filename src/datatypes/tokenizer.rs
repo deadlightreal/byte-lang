@@ -1,4 +1,4 @@
-use super::{Token, DataString, PrintString, FunctionArg, ValueType, ArgType, DataBoolean, StackFrame, FunctionStruct, DataNumber, VariableType, LoopToken, Compare, CompareType, CompareSymbol};
+use super::{Token, DataString, PrintString, FunctionArg, ValueType, ArgType, DataBoolean, StackFrame, FunctionStruct, DataNumber, VariableType, LoopToken, Compare, CompareType, CompareSymbol, CallFunction};
 use std::num::ParseFloatError;
 use std::collections::HashMap;
 
@@ -71,7 +71,7 @@ impl<'a> Tokenizer<'a> {
                             if self.current_char() == '{' {
                                 self.position += 1;
                                 let fn_content = self.get_content_from_braces();
-                                return Token::Function(FunctionStruct{name: fn_name, content: fn_content});
+                                return Token::Function(FunctionStruct{name: fn_name, content: fn_content, args: ok_args});
                             } else {
                                 return Token::Error(String::from("Expected { after fn"));
                             }
@@ -404,14 +404,20 @@ impl<'a> Tokenizer<'a> {
                     if self.current_char() != '(' {
                         return Token::Error(String::from("Expected ( after calling function"));
                     }
-                    let args = self.get_function_args(stack);
+                    let args = match self.get_function_args(stack) {
+                        Ok(args) => args,
+                        Err(err) => return Token::Error(err),
+                    };
+                    if args.len() != func.args.len() {
+                        return Token::Error(String::from("Invalid number of args passed"));
+                    }
                     if self.current_char() != ';' {
                         return Token::Error(String::from("Expected ; after calling function"));
                     }
 
                     self.position += 1;
 
-                    return Token::CallFunction(func.name);
+                    return Token::CallFunction(CallFunction{function: func, args});
                 }
             }
         }
@@ -751,10 +757,7 @@ impl<'a> Tokenizer<'a> {
                 if self.current_char() == ',' || self.current_char() == ')' || self.current_char() == ' ' {
                     if let Some(var) = last_frame.stack_items.get(&res) {
                         args.push(FunctionArg::Variable(var.clone()));
-                        if self.current_char() == ')' {break;} else {
-                            self.position += 1;
-                            break;
-                        }
+                        break;
                     } else {
                         match &res as &str {
                             "true" => args.push(FunctionArg::Value(ValueType::Boolean(true))),
@@ -768,10 +771,9 @@ impl<'a> Tokenizer<'a> {
                                     return Err(String::from("Invalid Arg"));
                                 }
                             },
-                        }
+                        };
+                        break;
                     }
-                    // return string or number or bool
-                    break;
                 } else if self.current_char() == '"' {
                     let mut str : String = String::new();
 
@@ -797,6 +799,8 @@ impl<'a> Tokenizer<'a> {
             if self.current_char() == ')' {
                 self.position += 1;
                 break;
+            } else {
+                self.position += 1;
             }
         }
 
