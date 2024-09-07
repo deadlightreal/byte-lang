@@ -22,7 +22,7 @@ _start:
 
     b.eq equal_0
 
-    bl continue_0
+    b continue_0
 equal_0:
     mov X0, #1
     adrp X1, print_string_0@PAGE
@@ -33,7 +33,7 @@ equal_0:
 
 
 
-    bl continue_0
+    b continue_0
 
 
 continue_0:
@@ -63,7 +63,7 @@ f_printstring:
 
     b.eq equal_1
 
-    bl continue_1
+    b continue_1
 equal_1:
     mov X0, #1
     adrp X1, print_string_2@PAGE
@@ -74,7 +74,7 @@ equal_1:
 
 
 
-    bl continue_1
+    b continue_1
 
 
 continue_1:

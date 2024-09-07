@@ -271,7 +271,7 @@ r#"    mov W{}, #{}
                 }
 
                 res.push_str(&format!(
-                    r#"    bl continue_{}
+                    r#"    b continue_{}
 "#,
                     current_number
                 ));
@@ -305,7 +305,7 @@ r#"    mov W{}, #{}
                                 r#"{}_{}:
 {}
 
-    bl continue_{}
+    b continue_{}
 "#,
                                 symbol_type, current_number, content, current_number
                             ));
