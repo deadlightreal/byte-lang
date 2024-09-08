@@ -16,12 +16,20 @@ fn main() {
     match command.as_str() {
         "run" => {
             run_file();
+        },
+        "build" => {
+            build_file();            
         }
         _ => {}
     }
 }
 
-fn run_file() {
+fn build_file() {
+    compile_file();
+    println!("App Compiled \n \n \n--------------------------------------------------------------\n \n \n")
+}
+
+fn compile_file() {
     // Getting second arg that should provide location of file that they want to run.
     let file_location = std::env::args()
         .nth(2)
@@ -121,7 +129,6 @@ _start:
             };
         };
         let got_offset = get_offset(stack.clone());
-        println!("stack: {:?}", stack.last().unwrap());
         stack.last_mut().unwrap().stack_items.insert(String::from("stack-pointer"), StackItem{ size: 16, offset: got_offset, variable: VariableType::Return() });
         current_offset += 16;
         let text = parse_code(
@@ -186,6 +193,11 @@ _start:
 
     // Compile the assembly file.
     compile_asm(current_dir);
+
+}
+
+fn run_file() {
+    compile_file();
 
     println!("Starting App \n \n \n--------------------------------------------------------------\n \n \n");
 

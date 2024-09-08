@@ -63,7 +63,7 @@ pub fn compile_asm(current_dir : PathBuf) {
         return;
     }
 
-    //fs::remove_file(assembly_file).expect("Error Removing Assembly File");
+    fs::remove_file(assembly_file).expect("Error Removing Assembly File");
 
     // Remove output file.
     fs::remove_file(output_file).expect("Error removing output file");
