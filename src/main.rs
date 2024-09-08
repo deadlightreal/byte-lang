@@ -25,11 +25,20 @@ fn main() {
 }
 
 fn build_file() {
-    compile_file();
+    let command = std::env::args().nth(3).expect("Please Provide a arch");
+    let arch : u8 = match &command as &str {
+        "arm64" => 1,
+        "x86" => 0,
+        _ => panic!("Error")
+    };
+
+    compile_file(arch);
     println!("App Compiled \n \n \n--------------------------------------------------------------\n \n \n")
 }
 
-fn compile_file() {
+fn compile_file(arch : u8) {
+    // Arch - 0 = x86 1 = arm64
+
     // Getting second arg that should provide location of file that they want to run.
     let file_location = std::env::args()
         .nth(2)
@@ -48,7 +57,13 @@ fn compile_file() {
 
     // Create a file that will contain output assembly code.
     let mut new_file_location = PathBuf::from(current_dir.clone());
-    new_file_location.push("output.s");
+    
+    match arch {
+        1 => new_file_location.push("output.s"),
+        0 => new_file_location.push("output.asm"),
+        _ => {}
+    };
+    
     let created_file = File::create(new_file_location.clone()).expect("Error creating File");
 
     // Create a writer for assembly code.
@@ -192,12 +207,12 @@ _start:
     writer.flush().expect("Err Flushing To File");
 
     // Compile the assembly file.
-    compile_asm(current_dir);
+    compile_asm(current_dir, arch);
 
 }
 
 fn run_file() {
-    compile_file();
+    compile_file(1);
 
     println!("Starting App \n \n \n--------------------------------------------------------------\n \n \n");
 

@@ -2,10 +2,15 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::fs;
 
-pub fn compile_asm(current_dir : PathBuf) {
+pub fn compile_asm(current_dir : PathBuf, arch : u8) {
     // Create paths of output assembly file, output file and final output file.
     let mut assembly_file = PathBuf::from(current_dir.clone());
-    assembly_file.push("output.s");
+    
+    match arch {
+        1 => assembly_file.push("output.s"),
+        0 => assembly_file.push("output.asm"),
+        _ => {}
+    };
 
     let mut output_file = PathBuf::from(current_dir.clone());
     output_file.push("output.o");
@@ -13,14 +18,11 @@ pub fn compile_asm(current_dir : PathBuf) {
     let mut final_file = PathBuf::from(current_dir.clone());
     final_file.push("output");
 
-    let mut new_file_location = PathBuf::from(current_dir);
-    new_file_location.push("output.s");
-
     // Execute the compiling commands
     let status = Command::new("as")
                         .arg("-o")
                         .arg(output_file.clone())
-                        .arg(new_file_location)
+                        .arg(assembly_file.clone())
                         .status()
                         .expect("Failed to execute command");
 
@@ -63,7 +65,7 @@ pub fn compile_asm(current_dir : PathBuf) {
         return;
     }
 
-    fs::remove_file(assembly_file).expect("Error Removing Assembly File");
+    //fs::remove_file(assembly_file).expect("Error Removing Assembly File");
 
     // Remove output file.
     fs::remove_file(output_file).expect("Error removing output file");
