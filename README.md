@@ -18,7 +18,7 @@ Since Byte Lang is in its early stages, the installation process involves clonin
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/your-repo/byte-lang.git
+   git clone https://github.com/deadlightreal/byte-lang
    ```
 
 2. **Navigate to the Directory**:
