@@ -9,7 +9,7 @@ mod datatypes;
 
 use compile_asm::compile_asm;
 use datatypes::parser::{get_offset, parse_code};
-use datatypes::{FunctionStruct, ArgType, StackItem, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataBoolean, DataNumber};
+use datatypes::{FunctionStruct, ArgType, StackItem, LoopStruct, VariableType, StackFrame, DataBoolean, DataNumber};
 
 fn main() {
     let command = std::env::args().nth(1).expect("Please Provide a command");
@@ -19,7 +19,10 @@ fn main() {
         },
         "build" => {
             build_file();            
-        }
+        },
+        "init" => {
+            init_command();
+        },
         _ => {}
     }
 }
@@ -27,6 +30,36 @@ fn main() {
 fn build_file() {
     compile_file();
     println!("App Compiled \n \n \n--------------------------------------------------------------\n \n \n")
+}
+
+fn init_command() {
+    let project_name = std::env::args().nth(2).expect("Please provide project name");
+
+    let dir = format!("{}/{}", std::env::current_dir().unwrap().to_str().unwrap(), project_name);
+
+    Command::new("mkdir")
+        .arg(dir.clone())
+        .status()
+        .unwrap();
+
+    Command::new("mkdir")
+        .arg("dependencies")
+        .status()
+        .unwrap();
+
+    let project_config_location = format!("{}/byte-config.json", dir);
+
+    let project_config_file = File::create(project_config_location).unwrap();
+
+    let mut config_writer = BufWriter::new(project_config_file);
+
+    write!(config_writer,
+r#"{{
+    "name": "{}"
+}}
+"#, project_name).unwrap();
+
+    config_writer.flush().unwrap();
 }
 
 fn compile_file() {
