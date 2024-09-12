@@ -23,7 +23,31 @@ fn main() {
         "init" => {
             init_command();
         },
+        "install" => {
+            install_dependency();
+        },
         _ => {}
+    }
+}
+
+fn install_dependency() {
+    println!("{:?}", get_project_folder());
+}
+
+fn get_project_folder() -> Result<PathBuf, String> {
+    let mut dir = std::env::current_dir().unwrap();
+
+    loop {
+        let config_file = dir.join("byte-config.json");
+        if config_file.exists() {
+            return Ok(dir);
+        } else {
+            if let Some(dir_parent) = dir.parent() {
+                dir = dir_parent.to_path_buf();
+            } else {
+                return Err(String::from("byte-lang dir not found!!"))
+            }
+        }
     }
 }
 
