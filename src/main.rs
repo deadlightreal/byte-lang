@@ -67,7 +67,7 @@ fn init_command() {
         .unwrap();
 
     Command::new("mkdir")
-        .arg("dependencies")
+        .arg(format!("{}/dependencies", dir.clone()))
         .status()
         .unwrap();
 
@@ -79,9 +79,23 @@ fn init_command() {
 
     write!(config_writer,
 r#"{{
-    "name": "{}"
+    "name": "{}",
+    "root": "main.byte"
 }}
 "#, project_name).unwrap();
+
+    let main_file = File::create(format!("{}/main.byte", dir)).unwrap();
+
+    let mut main_file_writer = BufWriter::new(main_file);
+
+    write!(main_file_writer,
+r#"\\
+Root file
+\\
+
+term;"#).unwrap();
+
+    main_file_writer.flush().unwrap();
 
     config_writer.flush().unwrap();
 }
