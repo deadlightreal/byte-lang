@@ -3,6 +3,7 @@ use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::process::Command;
 use std::{fs::File, io::Read};
+use unzip::Unzipper;
 
 mod compile_asm;
 mod datatypes;
@@ -31,7 +32,25 @@ fn main() {
 }
 
 fn install_dependency() {
-    println!("{:?}", get_project_folder());
+    let dependency_name = std::env::args().nth(2).unwrap();
+    let project_dir = get_project_folder().unwrap();
+    let dependencies_dir = project_dir.join("dependencies");
+
+    let response = reqwest::blocking::get(format!("http://localhost:8080/installPackage?package={}", dependency_name)).unwrap();
+
+    let dependency_dir = dependencies_dir.join(format!("{}.zip", dependency_name));
+    
+    let mut dest = File::create(dependency_dir.clone()).unwrap();
+
+    let content = response.bytes().unwrap();
+
+    std::io::copy(&mut content.as_ref(), &mut dest).unwrap();
+
+    let file = File::open(dependency_dir.clone()).unwrap();
+
+    Unzipper::new(file, &dependencies_dir.as_path()).unzip().unwrap();
+
+    std::fs::remove_file(dependency_dir).unwrap();
 }
 
 fn get_project_folder() -> Result<PathBuf, String> {
