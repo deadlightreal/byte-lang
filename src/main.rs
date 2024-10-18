@@ -3,6 +3,7 @@ use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::process::Command;
 use std::{fs::File, io::Read};
+use unzip::Unzipper;
 
 mod compile_asm;
 mod datatypes;
@@ -23,7 +24,89 @@ fn main() {
         "init" => {
             init_command();
         },
+        "install" => {
+            install_dependency();
+        },
         _ => {}
+    }
+}
+
+fn install_dependency() {
+    let dependency_name = std::env::args().nth(2).unwrap();
+    let project_dir = get_project_folder().unwrap();
+    let dependencies_dir = project_dir.join("dependencies");
+
+    let version : String = match std::env::args().nth(3) {
+        Some(version) => version,
+        None => String::new()
+    };
+
+    let response = reqwest::blocking::get(format!("http://localhost:8080/installPackage?package={}&version={}", dependency_name, version)).unwrap();
+
+    match response.status().as_u16() {
+        200 => {
+            let before_items = std::fs::read_dir(dependencies_dir.clone()).unwrap();
+
+            let mut items_hashmap : HashMap<String, u8> = HashMap::new();
+
+            for item in before_items {
+                items_hashmap.insert(item.unwrap().path().to_str().unwrap().to_string(), 0);
+            }
+
+            let mut dependency_dir = dependencies_dir.clone();
+            dependency_dir.push(format!("{}.zip", dependency_name));
+
+            let mut dest = File::create(dependency_dir.clone()).unwrap();
+
+            let content = response.bytes().unwrap();
+
+            std::io::copy(&mut content.as_ref(), &mut dest).unwrap();
+
+            let file = File::open(dependency_dir.clone()).unwrap();
+
+            Unzipper::new(file, &dependencies_dir.as_path()).unzip().unwrap();
+
+            std::fs::remove_file(dependency_dir.clone()).unwrap();
+
+            let after_items = std::fs::read_dir(dependencies_dir.clone()).unwrap();
+
+            for item in after_items {
+                let dir : String = item.unwrap().path().to_str().unwrap().to_string();
+                let map_item = items_hashmap.get(&dir);
+                match map_item {
+                    Some(_) => {},
+                    None => {
+                        let new_dir = dependencies_dir.clone().join(dependency_name.clone());
+                        std::fs::rename(dir, new_dir).unwrap();
+                    }
+                };
+            }
+        },
+        409 => {
+            println!("Error: {}", response.text().unwrap());
+        },
+        _ => {
+
+        }
+    }
+
+    
+}
+
+fn get_project_folder() -> Result<PathBuf, String> {
+    let mut dir = std::env::current_dir().unwrap();
+
+    loop {
+        let config_file = dir.join("byte-config.json");
+        if config_file.exists() {
+            return Ok(dir);
+        } else {
+            if let Some(dir_parent) = dir.parent() {
+                dir = dir_parent.to_path_buf();
+            } else {
+                return Err(String::from("byte-lang dir not found!!"))
+            }
+        }
     }
 }
 
@@ -43,7 +126,7 @@ fn init_command() {
         .unwrap();
 
     Command::new("mkdir")
-        .arg("dependencies")
+        .arg(format!("{}/dependencies", dir.clone()))
         .status()
         .unwrap();
 
@@ -55,9 +138,23 @@ fn init_command() {
 
     write!(config_writer,
 r#"{{
-    "name": "{}"
+    "name": "{}",
+    "root": "main.byte"
 }}
 "#, project_name).unwrap();
+
+    let main_file = File::create(format!("{}/main.byte", dir)).unwrap();
+
+    let mut main_file_writer = BufWriter::new(main_file);
+
+    write!(main_file_writer,
+r#"\\
+Root file
+\\
+
+term;"#).unwrap();
+
+    main_file_writer.flush().unwrap();
 
     config_writer.flush().unwrap();
 }
