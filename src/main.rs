@@ -36,21 +36,61 @@ fn install_dependency() {
     let project_dir = get_project_folder().unwrap();
     let dependencies_dir = project_dir.join("dependencies");
 
-    let response = reqwest::blocking::get(format!("http://localhost:8080/installPackage?package={}", dependency_name)).unwrap();
+    let version : String = match std::env::args().nth(3) {
+        Some(version) => version,
+        None => String::new()
+    };
 
-    let dependency_dir = dependencies_dir.join(format!("{}.zip", dependency_name));
+    let response = reqwest::blocking::get(format!("http://localhost:8080/installPackage?package={}&version={}", dependency_name, version)).unwrap();
+
+    match response.status().as_u16() {
+        200 => {
+            let before_items = std::fs::read_dir(dependencies_dir.clone()).unwrap();
+
+            let mut items_hashmap : HashMap<String, u8> = HashMap::new();
+
+            for item in before_items {
+                items_hashmap.insert(item.unwrap().path().to_str().unwrap().to_string(), 0);
+            }
+
+            let mut dependency_dir = dependencies_dir.clone();
+            dependency_dir.push(format!("{}.zip", dependency_name));
+
+            let mut dest = File::create(dependency_dir.clone()).unwrap();
+
+            let content = response.bytes().unwrap();
+
+            std::io::copy(&mut content.as_ref(), &mut dest).unwrap();
+
+            let file = File::open(dependency_dir.clone()).unwrap();
+
+            Unzipper::new(file, &dependencies_dir.as_path()).unzip().unwrap();
+
+            std::fs::remove_file(dependency_dir.clone()).unwrap();
+
+            let after_items = std::fs::read_dir(dependencies_dir.clone()).unwrap();
+
+            for item in after_items {
+                let dir : String = item.unwrap().path().to_str().unwrap().to_string();
+                let map_item = items_hashmap.get(&dir);
+                match map_item {
+                    Some(_) => {},
+                    None => {
+                        let new_dir = dependencies_dir.clone().join(dependency_name.clone());
+                        std::fs::rename(dir, new_dir).unwrap();
+                    }
+                };
+            }
+        },
+        409 => {
+            println!("Error: {}", response.text().unwrap());
+        },
+        _ => {
+
+        }
+    }
+
     
-    let mut dest = File::create(dependency_dir.clone()).unwrap();
-
-    let content = response.bytes().unwrap();
-
-    std::io::copy(&mut content.as_ref(), &mut dest).unwrap();
-
-    let file = File::open(dependency_dir.clone()).unwrap();
-
-    Unzipper::new(file, &dependencies_dir.as_path()).unzip().unwrap();
-
-    std::fs::remove_file(dependency_dir).unwrap();
 }
 
 fn get_project_folder() -> Result<PathBuf, String> {
