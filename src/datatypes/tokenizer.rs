@@ -1,4 +1,4 @@
-use super::{Token, DataString, PrintString, FunctionArg, ValueType, ArgType, DataBoolean, StackFrame, FunctionStruct, DataNumber, VariableType, LoopToken, Compare, CompareType, CompareSymbol, CallFunction};
+use super::{Token, Identifiers, TokenType, DataString, PrintString, FunctionArg, Keywords, BuildInFunctions, BuildInCommand, ValueType, ArgType, DataBoolean, Operators, StackFrame, FunctionStruct, DataNumber, Punctuations, VariableType, LoopToken, Compare, CompareType, CompareSymbol, CallFunction};
 use std::num::ParseFloatError;
 use std::collections::HashMap;
 
@@ -9,6 +9,8 @@ use std::collections::HashMap;
 pub struct Tokenizer<'a> {
     input: &'a str,
     position: usize,
+    col: u32,
+    line: u32,
 }
 
 pub enum GetTokenReturn {
@@ -20,9 +22,111 @@ pub enum GetTokenReturn {
 impl<'a> Tokenizer<'a> {
     // Initialize the tokenizer.
     pub fn new(input: &'a str) -> Self {
-        Self {input, position: 0}
+        Self {input, position: 0, col: 1, line: 1}
     }
 
+    pub fn tokenize_all(&mut self) -> Vec<Token> {
+        let mut res : Vec<Token> = Vec::new();
+
+        loop {
+            let token = self.next_token();
+            
+            match token {
+                Some(tkn) => {
+                    res.push(tkn.clone());
+                    if matches!(&tkn.kind, TokenType::EOF) {
+                        return res;
+                    }
+                },
+                None => {}
+            };
+        }
+    }
+    
+    pub fn next_token(&mut self) -> Option<Token> {
+        self.skip_whitespace();
+
+        if self.input.len() <= self.position {
+            return Some(Token{kind: TokenType::EOF, start_col: self.col, end_col: self.col, line: self.line, start_pos: self.position, end_pos: self.position});
+        }
+
+        let mut res = String::new();
+
+        let start_col = self.col;
+        let start_pos = self.position;
+
+        match self.current_char() {
+            '\n' | ';' | '(' | ')' | ',' => {
+                self.col += 1;
+                res = String::from(self.current_char());
+                self.position += 1;
+            },
+            _ => {
+                while self.position < self.input.len() && self.current_char().is_whitespace() == false && matches!(self.current_char(), ';' | '(' | ')' | ',') == false {
+                    res.push(self.current_char());
+                    self.col += 1;
+                    self.position += 1;
+                };
+            }
+        }
+
+        let token_default = Token{kind: TokenType::EOF, start_col, end_col: self.col, line: self.line, start_pos, end_pos: self.position};
+
+        match &res as &str {
+            "\n" => {
+                self.line += 1;
+                self.col = 1;
+            },
+            "term" => {
+                return Some(Token{kind: TokenType::BuildInCommand(BuildInCommand::Terminate), ..token_default})
+            },
+            ";" => {
+                return Some(Token{kind: TokenType::Semicolon, ..token_default});
+            },
+            "=" => {
+                return Some(Token{kind: TokenType::Operator(Operators::Assignment), ..token_default});
+            },
+            "(" => {
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::OpenParenthesis), ..token_default})
+            },
+            ")" => {
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::ClosedParenthesis), ..token_default})
+            },
+            "," => {
+                return Some(Token{kind: TokenType::Punctuation(Punctuations::Comma), ..token_default})
+            },
+            "string" => {
+                return Some(Token{kind: TokenType::Keyword(Keywords::StringType), ..token_default})
+            },
+            "number" => {
+                return Some(Token{kind: TokenType::Keyword(Keywords::NumberType), ..token_default})
+            },
+            "compare" => {
+                return Some(Token{kind: TokenType::BuildInFunctions(BuildInFunctions::Compare), ..token_default})
+            },
+            "println" => {
+                return Some(Token{kind: TokenType::BuildInFunctions(BuildInFunctions::Println), ..token_default})
+            },
+            "loop" => {
+                return Some(Token{kind: TokenType::BuildInFunctions(BuildInFunctions::Loop), ..token_default})
+            },
+            _ => {
+                match res.parse::<i32>() {
+                    Ok(num) => {
+                        return Some(Token{kind: TokenType::Identifiers(Identifiers::NumberLiteral(num)), ..token_default});
+                    },
+                    Err(_) => {
+                        return Some(Token{kind: TokenType::Identifiers(Identifiers::VariableName(res)), ..token_default});
+
+                    }
+                }
+            }
+        } 
+
+        return None;
+    }
+
+    /*
     pub fn tokenize_all(&mut self, stack : Vec<StackFrame>, functions: HashMap<String, FunctionStruct>) -> Vec<Token> {
         self.position = 0;
 
@@ -414,7 +518,7 @@ impl<'a> Tokenizer<'a> {
                     if self.current_char() != ';' {
                         return Token::Error(String::from("Expected ; after calling function"));
                     }
-
+ 
                     self.position += 1;
 
                     return Token::CallFunction(CallFunction{function: func, args});
@@ -422,6 +526,7 @@ impl<'a> Tokenizer<'a> {
             }
         }
     }
+    */
 
     pub fn get_content_from_asm(&mut self) -> String {
         let mut res : String = String::new();
@@ -921,7 +1026,8 @@ impl<'a> Tokenizer<'a> {
 
     // Skips whitespace.
     pub fn skip_whitespace(&mut self) {
-        while self.position < self.input.len() && self.current_char().is_whitespace() {
+        while self.position < self.input.len() && self.current_char().is_whitespace() && self.current_char() != '\n' {
+            self.col += 1;
             self.position += 1;
         }
     }

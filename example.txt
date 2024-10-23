@@ -1,11 +1,3 @@
-number ten = 10;
-number five = 5;
+number test = 10;
 
-compare(5, 5)
-.== {
-    println("five = 5");
-}
-.!= {
-    println("five != 5");
-};
 term;

@@ -1,17 +1,143 @@
 use std::collections::HashMap;
 use std::{fs::File, io::Read};
 
-use super::{CompareType, FunctionStruct, StackItem, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataNumber, ArgType, FunctionArg, ValueType};
+use super::{CompareType, FunctionStruct, StackItem, BuildInCommand, TokenType, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataNumber, ArgType, FunctionArg, ValueType, Statements, Identifiers, Literal, VariableDeclaration, Expression, DeclareVariableType, Keywords, Operators};
 
 pub struct Parser<'a> {
     input: &'a Vec<Token>,
+    position: usize,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(input: &'a Vec<Token>) -> Self {
-        return Self{input};
+        return Self{input, position: 0};
     }
 
+    pub fn parse_all(&mut self) -> Vec<Statements> {
+        let mut statements : Vec<Statements> = Vec::new();
+
+        loop {
+            match self.parse_next() {
+                Some(statement) => {
+                    statements.push(statement);
+                },
+                None => break,
+            };
+        }
+
+        return statements;
+    }
+
+    pub fn parse_next(&mut self) -> Option<Statements> {
+        let token = self.current_token();
+
+        println!("{:?}", token.kind);
+
+        match token.kind {
+            TokenType::EOF => {
+                return None;
+            },
+            TokenType::BuildInCommand(command) => {
+                match command {
+                    BuildInCommand::Terminate => {
+                        if self.current_token().kind != TokenType::Semicolon {
+                            println!("Expected Semicolon after Terminate");
+
+                            return None;
+                        };
+
+                        return Some(Statements::Terminate);
+                    }
+                };
+            },
+            TokenType::Keyword(keyword) => {
+                let variable_type : DeclareVariableType = match keyword {
+                    Keywords::NumberType => DeclareVariableType::Number,
+                    Keywords::StringType => DeclareVariableType::String,
+                };
+
+                let option_name : Option<String> = match self.current_token().kind {
+                    TokenType::Identifiers(identifier) => {
+                        match identifier {
+                            Identifiers::VariableName(name) => Some(name),
+                            _ => None
+                        }
+                    },
+                    _ => None
+                };
+
+                if option_name.is_none() {return None;};
+
+                let name = option_name.unwrap();
+
+                if self.current_token().kind != TokenType::Operator(Operators::Assignment) {
+                    println!("Plase Declare the variable");
+                    return None;
+                }
+
+                let value = self.current_token();
+
+                if 
+                    (
+                    (
+                        variable_type == DeclareVariableType::Number 
+                        && 
+                        matches!(value.kind, TokenType::Identifiers(Identifiers::NumberLiteral(_)))
+                    ) 
+                    || 
+                    (
+                        variable_type == DeclareVariableType::String
+                        &&
+                        matches!(value.kind, TokenType::Identifiers(Identifiers::StringLiteral(_)))
+                    ) 
+                    )
+                    ==
+                    false
+                {
+                    println!("Invalid combination of value and type");
+                    return None;
+                }
+
+                let option_value : Option<Expression> = match value.kind {
+                    TokenType::Identifiers(identifier) => {
+                        match identifier {
+                            Identifiers::StringLiteral(string_val) => Some(Expression::Literal(Literal::String(string_val))),
+                            Identifiers::NumberLiteral(num_val) => Some(Expression::Literal(Literal::Number(num_val))),
+                            _ => None
+                        }
+                    },
+                    _ => None
+                };
+
+                if option_value.is_none() {
+                    println!("Please Provide a valid value");
+                    return None;
+                }
+
+                let value = option_value.unwrap();
+
+                if self.current_token().kind != TokenType::Semicolon {
+                    println!("Expected Semicolon after declaring var");
+                }
+
+                return Some(Statements::VariableDeclaration(VariableDeclaration{name, value, variable_type}));
+            },
+            _ => {
+                println!("Syntax Error!!!");
+                return None;
+            }
+        };
+    }
+
+    pub fn current_token(&mut self) -> Token {
+        let tkn = self.input.get(self.position).unwrap().clone(); 
+        
+        self.position += 1;
+        
+        return tkn;
+    }
+
+    /*
     pub fn parse_all(
         &mut self,
         stack: &mut Vec<StackFrame>,
@@ -581,6 +707,7 @@ l_{}:
         
         Ok(String::new())
     }
+    */
 }
 
 pub fn parse_code(
@@ -595,9 +722,16 @@ pub fn parse_code(
     current_offset: &mut u64,
     ) -> Result<String, String> {
     let mut tokenizer = Tokenizer::new(input);
+    let tokens = tokenizer.tokenize_all();
     
+    let mut parser = Parser::new(&tokens);
+    let parsed = parser.parse_all();
+
+    println!("tokens: {:?} parsed: {:?}", tokens, parsed);
+
     let mut res = String::new();
 
+    /*
     loop {
         let token = tokenizer.next_token(stack.clone(), functions.clone());
         match token {
@@ -612,6 +746,7 @@ pub fn parse_code(
             }
         }
     }
+    */
     return Ok(res);
 }
 

@@ -8,8 +8,39 @@ use super::data_boolean::DataBoolean;
 use super::call_function::CallFunction;
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Token {
-    PrintVariable(String),
+pub struct Token {
+    pub kind: TokenType,
+    pub line: u32,
+    pub start_col: u32,
+    pub end_col: u32,
+    pub start_pos: usize,
+    pub end_pos: usize
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Keywords {
+    NumberType,
+    StringType,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Identifiers {
+    StringLiteral(String),
+    NumberLiteral(i32),
+    VariableName(String)
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum TokenType {
+    EOF,
+    BuildInCommand(BuildInCommand),
+    Operator(Operators),
+    Semicolon,
+    Keyword(Keywords),
+    Punctuation(Punctuations),
+    BuildInFunctions(BuildInFunctions),
+    Identifiers(Identifiers)
+    /*PrintVariable(String),
     PrintlnVariable(String),
     PrintString(PrintString),
     EOF,
@@ -27,4 +58,29 @@ pub enum Token {
     DataBoolean(DataBoolean),
     Import(String),
     Asm(String),
+    */
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum BuildInFunctions {
+    Println,
+    Loop,
+    Compare
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Punctuations {
+    OpenParenthesis,
+    ClosedParenthesis,
+    Comma
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Operators {
+    Assignment
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum BuildInCommand {
+    Terminate
 }
