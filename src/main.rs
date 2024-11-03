@@ -13,6 +13,8 @@ use datatypes::parser::{get_offset, parse_code};
 use datatypes::{FunctionStruct, ArgType, StackItem, LoopStruct, VariableType, StackFrame, DataBoolean, DataNumber};
 
 fn main() {
+    let start = std::time::Instant::now();
+
     let command = std::env::args().nth(1).expect("Please Provide a command");
     match command.as_str() {
         "run" => {
@@ -28,7 +30,9 @@ fn main() {
             install_dependency();
         },
         _ => {}
-    }
+    };
+
+    println!("{:?}", start.elapsed());
 }
 
 fn install_dependency() {
@@ -193,41 +197,15 @@ fn compile_file() {
         writer,
         r#".global _start
 .align 2
+.text
 _start:
 
 "#
     )
     .expect("Error Writing File");
 
-    // Store strings used to print.
-    let mut print_strings: Vec<String> = Vec::new();
-
-    let mut current_offset : u64 = 0;
-
-    let mut labels : Vec<String> = Vec::new();
-
-    // Variables like numbers and strings.
-    let mut stack : Vec<StackFrame> = Vec::new();
-    stack.push(StackFrame{stack_items: HashMap::new()});
-
-    let mut functions: HashMap<String, FunctionStruct> = HashMap::new();
-
-    // Store number of loops made.
-    let loop_number: u32 = 0;
-    let mut compare_number: u32 = 0;
-
-    let mut loops: Vec<LoopStruct> = Vec::new();
-
     let parsed_text = parse_code(
         &content as &str,
-        &mut stack,
-        loop_number,
-        &mut print_strings,
-        &mut loops,
-        &mut compare_number,
-        &mut functions,
-        &mut labels,
-        &mut current_offset,
     );
 
     match parsed_text {
@@ -237,87 +215,7 @@ _start:
             return;
         }
     }
-
-    let mut arg_size : u16 = 0;
-
-    for func in functions.clone().values() {
-        stack.push(StackFrame{stack_items: HashMap::new()});
-        for arg in func.args.clone() {
-            let offset = get_offset(stack.clone());
-            match arg {
-                ArgType::Bool(name) => {
-                    stack.last_mut().unwrap().stack_items.insert(name.clone(), StackItem{offset, size: 16, variable: VariableType::Bool(DataBoolean{name, value: false})});
-                    current_offset += 16;
-                    arg_size += 16;
-                },
-                ArgType::Number(name) => {
-                    stack.last_mut().unwrap().stack_items.insert(name.clone(), StackItem{offset, size: 16, variable: VariableType::Number(DataNumber{name, value: 0})});
-                    current_offset += 16;
-                    arg_size += 16;
-                }
-                _ => {},
-            };
-        };
-        let got_offset = get_offset(stack.clone());
-        stack.last_mut().unwrap().stack_items.insert(String::from("stack-pointer"), StackItem{ size: 16, offset: got_offset, variable: VariableType::Return() });
-        current_offset += 16;
-        let text = parse_code(
-            &func.content as &str,
-            &mut stack,
-            loop_number,
-            &mut print_strings,
-            &mut loops,
-            &mut compare_number,
-            &mut functions,
-            &mut labels,
-            &mut current_offset,
-        ).unwrap();
-        write!(
-            writer,
-            r#"f_{}:
-    str X30, [sp]
-    sub sp, sp, #16
-
-{}
-
-    add sp, sp, #{}
-
-    ldr X30, [sp]
-
-    add sp, sp, #{}
-
-    ret
-"#,
-            func.name, text, current_offset as u32 - got_offset, arg_size
-            )
-        .expect("error writing to a file");
-        stack.pop();
-        println!("{:?}", stack);
-    }
-
-    let mut index = 0;
-
-    for item in labels {
-        write!(writer, "{}", item).expect("error writing to a file");
-    }
-
-    write!(writer, ".data\n").expect("error writing to a file");
-
-    // Create a new_line string that contains \n.
-    write!(writer, "new_line: .ascii \"\\n\"\n")
-        .expect("Error Writing to a file");
-
-    // Insert print strings into data section.
-    for print_string in print_strings {
-        write!(
-            writer,
-            "print_string_{}: .ascii \"{}\"\n",
-            index, print_string
-        )
-        .expect("Error writing to a file");
-        index += 1;
-    }
-
+       
     // Save the file with new content.
     writer.flush().expect("Err Flushing To File");
 

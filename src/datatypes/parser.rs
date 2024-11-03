@@ -1,17 +1,168 @@
 use std::collections::HashMap;
 use std::{fs::File, io::Read};
 
-use super::{CompareType, FunctionStruct, StackItem, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataNumber, ArgType, FunctionArg, ValueType};
+use super::{CompareType, FunctionStruct, Punctuations, CodeGenerator, Statement, SemanticAnaytis, StackItem, BuildInCommand, TokenType, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataNumber, ArgType, FunctionArg, ValueType, Statements, Identifiers, Literal, VariableDeclaration, BuildInFunctionsAst, Expression, DeclareVariableType, BuildInFunctions, Keywords, Operators};
 
 pub struct Parser<'a> {
     input: &'a Vec<Token>,
+    position: usize,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(input: &'a Vec<Token>) -> Self {
-        return Self{input};
+        return Self{input, position: 0};
     }
 
+    pub fn parse_all(&mut self) -> Vec<Statement> {
+        let mut statements : Vec<Statement> = Vec::new();
+
+        loop {
+            match self.parse_next() {
+                Ok(statement) => {
+                    statements.push(statement.clone());
+                    if statement.statement_type == Statements::EOF {
+                        break;
+                    }
+                },
+                Err(err) => {
+                    println!("{}", err);
+                    break;
+                },
+            };
+        }
+
+        return statements;
+    }
+
+    pub fn parse_next(&mut self) -> Result<Statement, String> {
+        let token = self.current_token();
+
+        println!("{:?}", token.kind);
+
+        let statement_default : Statement = Statement{col: token.col, line: token.line, end_pos: 0, start_pos: token.start_pos, statement_type: Statements::Terminate};
+
+        match token.kind {
+            TokenType::EOF => {
+                return Ok(Statement{statement_type: Statements::EOF, end_pos: token.end_pos, ..statement_default});
+            },
+            TokenType::BuildInCommand(command) => {
+                match command {
+                    BuildInCommand::Terminate => {
+                        let semicolon_token = self.current_token();
+                        if semicolon_token.kind != TokenType::Semicolon {
+                            return Err(String::from("Expected Semicolon after Terminate"));
+                        };
+
+                        return Ok(Statement{statement_type: Statements::Terminate, end_pos: semicolon_token.end_pos, ..statement_default});
+                    }
+                };
+            },
+            TokenType::BuildInFunctions(func) => {
+                match func {
+                    BuildInFunctions::Println => {
+                        if self.current_token().kind != TokenType::Punctuation(Punctuations::OpenParenthesis) {
+                            return Err(String::new());
+                        };
+
+                        let string_val : String = match self.current_token().kind {
+                            TokenType::Identifiers(identifier) => {
+                                match identifier {
+                                    Identifiers::StringLiteral(str) => str,
+                                    _ => {
+                                        return Err(String::new());
+                                    }
+                                }
+                            },
+                            _ => {
+                                return Err(String::new());
+                            }
+                        };
+    
+                        if self.current_token().kind != TokenType::Punctuation(Punctuations::ClosedParenthesis) {
+                            return Err(String::new());
+                        };
+
+                        let semicolon = self.current_token();
+
+                        if semicolon.kind != TokenType::Semicolon {
+                            return Err(String::new());
+                        };
+
+                        return Ok(Statement{statement_type: Statements::BuildInFunctions(BuildInFunctionsAst::Println(string_val)), end_pos: semicolon.end_pos, ..statement_default})
+                    },
+                    _ => ()
+               };  
+
+                return Err(String::new());
+            },
+            TokenType::Keyword(keyword) => {
+                let variable_type : DeclareVariableType = match keyword {
+                    Keywords::NumberType => DeclareVariableType::Number,
+                    Keywords::StringType => DeclareVariableType::String,
+                };
+
+                let option_name : Option<String> = match self.current_token().kind {
+                    TokenType::Identifiers(identifier) => {
+                        match identifier {
+                            Identifiers::VariableName(name) => Some(name),
+                            _ => None
+                        }
+                    },
+                    _ => None
+                };
+
+                if option_name.is_none() {
+                    return Err(String::from("Invalid Var Name"));
+                };
+
+                let name = option_name.unwrap();
+
+                if self.current_token().kind != TokenType::Operator(Operators::Assignment) {
+                    return Err(String::from("Plase Declare the variable"));
+                }
+
+                let value = self.current_token();
+
+                let option_value : Option<Expression> = match value.kind {
+                    TokenType::Identifiers(identifier) => {
+                        match identifier {
+                            Identifiers::StringLiteral(string_val) => Some(Expression::Literal(Literal::String(string_val))),
+                            Identifiers::NumberLiteral(num_val) => Some(Expression::Literal(Literal::Number(num_val))),
+                            _ => None
+                        }
+                    },
+                    _ => None
+                };
+
+                if option_value.is_none() {
+                    return Err(String::from("Please Provide a valid value"));
+                }
+
+                let value = option_value.unwrap();
+
+                let semicolon_token = self.current_token();
+
+                if semicolon_token.kind != TokenType::Semicolon {
+                    println!("Expected Semicolon after declaring var");
+                }
+
+                return Ok(Statement{statement_type : Statements::VariableDeclaration(VariableDeclaration{name, value, variable_type}), end_pos: semicolon_token.end_pos, ..statement_default});
+            },
+            _ => {
+                return Err(String::from("Syntax Error!!!"));
+            }
+        };
+    }
+
+    pub fn current_token(&mut self) -> Token {
+        let tkn = self.input.get(self.position).unwrap().clone(); 
+        
+        self.position += 1;
+        
+        return tkn;
+    }
+
+    /*
     pub fn parse_all(
         &mut self,
         stack: &mut Vec<StackFrame>,
@@ -581,23 +732,28 @@ l_{}:
         
         Ok(String::new())
     }
+    */
 }
 
 pub fn parse_code(
     input: &str,
-    stack: &mut Vec<StackFrame>,
-    loop_number: u32,
-    print_strings: &mut Vec<String>,
-    loops: &mut Vec<LoopStruct>,
-    compare_number: &mut u32,
-    functions: &mut HashMap<String, FunctionStruct>,
-    labels: &mut Vec<String>,
-    current_offset: &mut u64,
     ) -> Result<String, String> {
     let mut tokenizer = Tokenizer::new(input);
+    let tokens = tokenizer.tokenize_all();
     
-    let mut res = String::new();
+    let mut parser = Parser::new(&tokens);
+    let parsed = parser.parse_all();
+    
+    let mut analyzer = SemanticAnaytis::new(&parsed, input);
+    analyzer.analyze_all();
 
+    let mut code_generator = CodeGenerator::new(&parsed);
+    let generated_output = code_generator.generate_all();
+    println!("{:?}", generated_output);
+
+    let res : String = generated_output.join("");
+
+    /*
     loop {
         let token = tokenizer.next_token(stack.clone(), functions.clone());
         match token {
@@ -612,6 +768,7 @@ pub fn parse_code(
             }
         }
     }
+    */
     return Ok(res);
 }
 
