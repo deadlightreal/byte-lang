@@ -37,11 +37,5 @@ Since Byte Lang is in its early stages, the installation process involves clonin
 ### Syntax
 * print - Prints the provided string or string variable.
 * println - Same as print but adds newline at the end.
-* string name = value - Creates a new string variable.
 * number name = value - Creates a new number variable.
-* bool name = true | false - Creates a new bool variable.
-* loop(number) {} - Loops x amount of times.
-* compare(number1, number2).=={} .!={}; - Compares two numbers and does things based on the result.
 * term - Terminates the program.
-* wait(number) - waits .. number of seconds.
-* fn [name]() {} - creates a function.
