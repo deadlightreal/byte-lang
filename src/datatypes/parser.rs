@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::{fs::File, io::Read};
 
-use super::{CompareType, FunctionStruct, StackItem, BuildInCommand, TokenType, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataNumber, ArgType, FunctionArg, ValueType, Statements, Identifiers, Literal, VariableDeclaration, Expression, DeclareVariableType, Keywords, Operators};
+use super::{CompareType, FunctionStruct, Punctuations, CodeGenerator, Statement, SemanticAnaytis, StackItem, BuildInCommand, TokenType, LoopStruct, Token, Tokenizer, VariableType, StackFrame, DataNumber, ArgType, FunctionArg, ValueType, Statements, Identifiers, Literal, VariableDeclaration, BuildInFunctionsAst, Expression, DeclareVariableType, BuildInFunctions, Keywords, Operators};
 
 pub struct Parser<'a> {
     input: &'a Vec<Token>,
@@ -13,42 +13,87 @@ impl<'a> Parser<'a> {
         return Self{input, position: 0};
     }
 
-    pub fn parse_all(&mut self) -> Vec<Statements> {
-        let mut statements : Vec<Statements> = Vec::new();
+    pub fn parse_all(&mut self) -> Vec<Statement> {
+        let mut statements : Vec<Statement> = Vec::new();
 
         loop {
             match self.parse_next() {
-                Some(statement) => {
-                    statements.push(statement);
+                Ok(statement) => {
+                    statements.push(statement.clone());
+                    if statement.statement_type == Statements::EOF {
+                        break;
+                    }
                 },
-                None => break,
+                Err(err) => {
+                    println!("{}", err);
+                    break;
+                },
             };
         }
 
         return statements;
     }
 
-    pub fn parse_next(&mut self) -> Option<Statements> {
+    pub fn parse_next(&mut self) -> Result<Statement, String> {
         let token = self.current_token();
 
         println!("{:?}", token.kind);
 
+        let statement_default : Statement = Statement{col: token.col, line: token.line, end_pos: 0, start_pos: token.start_pos, statement_type: Statements::Terminate};
+
         match token.kind {
             TokenType::EOF => {
-                return None;
+                return Ok(Statement{statement_type: Statements::EOF, end_pos: token.end_pos, ..statement_default});
             },
             TokenType::BuildInCommand(command) => {
                 match command {
                     BuildInCommand::Terminate => {
-                        if self.current_token().kind != TokenType::Semicolon {
-                            println!("Expected Semicolon after Terminate");
-
-                            return None;
+                        let semicolon_token = self.current_token();
+                        if semicolon_token.kind != TokenType::Semicolon {
+                            return Err(String::from("Expected Semicolon after Terminate"));
                         };
 
-                        return Some(Statements::Terminate);
+                        return Ok(Statement{statement_type: Statements::Terminate, end_pos: semicolon_token.end_pos, ..statement_default});
                     }
                 };
+            },
+            TokenType::BuildInFunctions(func) => {
+                match func {
+                    BuildInFunctions::Println => {
+                        if self.current_token().kind != TokenType::Punctuation(Punctuations::OpenParenthesis) {
+                            return Err(String::new());
+                        };
+
+                        let string_val : String = match self.current_token().kind {
+                            TokenType::Identifiers(identifier) => {
+                                match identifier {
+                                    Identifiers::StringLiteral(str) => str,
+                                    _ => {
+                                        return Err(String::new());
+                                    }
+                                }
+                            },
+                            _ => {
+                                return Err(String::new());
+                            }
+                        };
+    
+                        if self.current_token().kind != TokenType::Punctuation(Punctuations::ClosedParenthesis) {
+                            return Err(String::new());
+                        };
+
+                        let semicolon = self.current_token();
+
+                        if semicolon.kind != TokenType::Semicolon {
+                            return Err(String::new());
+                        };
+
+                        return Ok(Statement{statement_type: Statements::BuildInFunctions(BuildInFunctionsAst::Println(string_val)), end_pos: semicolon.end_pos, ..statement_default})
+                    },
+                    _ => ()
+               };  
+
+                return Err(String::new());
             },
             TokenType::Keyword(keyword) => {
                 let variable_type : DeclareVariableType = match keyword {
@@ -66,37 +111,17 @@ impl<'a> Parser<'a> {
                     _ => None
                 };
 
-                if option_name.is_none() {return None;};
+                if option_name.is_none() {
+                    return Err(String::from("Invalid Var Name"));
+                };
 
                 let name = option_name.unwrap();
 
                 if self.current_token().kind != TokenType::Operator(Operators::Assignment) {
-                    println!("Plase Declare the variable");
-                    return None;
+                    return Err(String::from("Plase Declare the variable"));
                 }
 
                 let value = self.current_token();
-
-                if 
-                    (
-                    (
-                        variable_type == DeclareVariableType::Number 
-                        && 
-                        matches!(value.kind, TokenType::Identifiers(Identifiers::NumberLiteral(_)))
-                    ) 
-                    || 
-                    (
-                        variable_type == DeclareVariableType::String
-                        &&
-                        matches!(value.kind, TokenType::Identifiers(Identifiers::StringLiteral(_)))
-                    ) 
-                    )
-                    ==
-                    false
-                {
-                    println!("Invalid combination of value and type");
-                    return None;
-                }
 
                 let option_value : Option<Expression> = match value.kind {
                     TokenType::Identifiers(identifier) => {
@@ -110,21 +135,21 @@ impl<'a> Parser<'a> {
                 };
 
                 if option_value.is_none() {
-                    println!("Please Provide a valid value");
-                    return None;
+                    return Err(String::from("Please Provide a valid value"));
                 }
 
                 let value = option_value.unwrap();
 
-                if self.current_token().kind != TokenType::Semicolon {
+                let semicolon_token = self.current_token();
+
+                if semicolon_token.kind != TokenType::Semicolon {
                     println!("Expected Semicolon after declaring var");
                 }
 
-                return Some(Statements::VariableDeclaration(VariableDeclaration{name, value, variable_type}));
+                return Ok(Statement{statement_type : Statements::VariableDeclaration(VariableDeclaration{name, value, variable_type}), end_pos: semicolon_token.end_pos, ..statement_default});
             },
             _ => {
-                println!("Syntax Error!!!");
-                return None;
+                return Err(String::from("Syntax Error!!!"));
             }
         };
     }
@@ -712,24 +737,21 @@ l_{}:
 
 pub fn parse_code(
     input: &str,
-    stack: &mut Vec<StackFrame>,
-    loop_number: u32,
-    print_strings: &mut Vec<String>,
-    loops: &mut Vec<LoopStruct>,
-    compare_number: &mut u32,
-    functions: &mut HashMap<String, FunctionStruct>,
-    labels: &mut Vec<String>,
-    current_offset: &mut u64,
     ) -> Result<String, String> {
     let mut tokenizer = Tokenizer::new(input);
     let tokens = tokenizer.tokenize_all();
     
     let mut parser = Parser::new(&tokens);
     let parsed = parser.parse_all();
+    
+    let mut analyzer = SemanticAnaytis::new(&parsed, input);
+    analyzer.analyze_all();
 
-    println!("tokens: {:?} parsed: {:?}", tokens, parsed);
+    let mut code_generator = CodeGenerator::new(&parsed);
+    let generated_output = code_generator.generate_all();
+    println!("{:?}", generated_output);
 
-    let mut res = String::new();
+    let res : String = generated_output.join("");
 
     /*
     loop {

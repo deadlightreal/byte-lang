@@ -9,8 +9,8 @@ use std::collections::HashMap;
 pub struct Tokenizer<'a> {
     input: &'a str,
     position: usize,
-    col: u32,
-    line: u32,
+    col: usize,
+    line: usize,
 }
 
 pub enum GetTokenReturn {
@@ -47,12 +47,11 @@ impl<'a> Tokenizer<'a> {
         self.skip_whitespace();
 
         if self.input.len() <= self.position {
-            return Some(Token{kind: TokenType::EOF, start_col: self.col, end_col: self.col, line: self.line, start_pos: self.position, end_pos: self.position});
+            return Some(Token{kind: TokenType::EOF, col: self.col, line: self.line, start_pos: self.position, end_pos: self.position});
         }
 
         let mut res = String::new();
 
-        let start_col = self.col;
         let start_pos = self.position;
 
         match self.current_char() {
@@ -60,6 +59,20 @@ impl<'a> Tokenizer<'a> {
                 self.col += 1;
                 res = String::from(self.current_char());
                 self.position += 1;
+            },
+            '"' => {
+                let mut str = String::new();
+
+                self.position += 1;
+
+                while self.position < self.input.len() && self.current_char() != '"' {
+                    str.push(self.current_char());
+                    self.position += 1;
+                };
+
+                self.position += 1;
+
+                return Some(Token{kind: TokenType::Identifiers(Identifiers::StringLiteral(str)), col: self.col, line: self.line, start_pos, end_pos: self.position});
             },
             _ => {
                 while self.position < self.input.len() && self.current_char().is_whitespace() == false && matches!(self.current_char(), ';' | '(' | ')' | ',') == false {
@@ -70,7 +83,7 @@ impl<'a> Tokenizer<'a> {
             }
         }
 
-        let token_default = Token{kind: TokenType::EOF, start_col, end_col: self.col, line: self.line, start_pos, end_pos: self.position};
+        let token_default = Token{kind: TokenType::EOF, col: self.col, line: self.line, start_pos, end_pos: self.position};
 
         match &res as &str {
             "\n" => {

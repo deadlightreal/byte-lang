@@ -10,9 +10,8 @@ use super::call_function::CallFunction;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub kind: TokenType,
-    pub line: u32,
-    pub start_col: u32,
-    pub end_col: u32,
+    pub line: usize,
+    pub col: usize,
     pub start_pos: usize,
     pub end_pos: usize
 }

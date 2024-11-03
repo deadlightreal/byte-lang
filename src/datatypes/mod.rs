@@ -19,6 +19,9 @@ pub mod value_type;
 pub mod arg_type;
 pub mod call_function;
 pub mod ast_statements;
+pub mod code_generator;
+pub mod semantic_analysis;
+pub mod static_data;
 
 pub use {
     data_string::DataString,
@@ -39,6 +42,7 @@ pub use {
     token::Keywords,
     stack_item::StackItem,
     parser::Parser,
+    ast_statements::Statement,
     token::Operators,
     token::Punctuations,
     token::TokenType,
@@ -52,5 +56,9 @@ pub use {
     ast_statements::DeclareVariableType,
     ast_statements::Literal,
     ast_statements::Expression,
-    ast_statements::VariableDeclaration
+    ast_statements::VariableDeclaration,
+    semantic_analysis::SemanticAnaytis,
+    code_generator::CodeGenerator,
+    static_data::StaticData,
+    ast_statements::BuildInFunctionsAst
 };
