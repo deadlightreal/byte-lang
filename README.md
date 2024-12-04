@@ -37,7 +37,7 @@ number test_var = 0;
 number test_var_2 = 10;
 
 fn printstring() {
-    compare(10, 10,)
+    compare(10, 10)
     .== {
         println("printing");
     };
