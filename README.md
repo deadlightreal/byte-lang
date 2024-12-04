@@ -31,8 +31,30 @@ Since Byte Lang is in its early stages, the installation process involves clonin
 ### Commands
 * run (file location like example.txt)
 
-### Syntax
-* print - Prints the provided string or string variable.
-* println - Same as print but adds newline at the end.
-* number name = value - Creates a new number variable.
-* term - Terminates the program.
+### Example
+```bash
+number test_var = 0;
+number test_var_2 = 10;
+
+fn printstring() {
+    compare(10, 10,)
+    .== {
+        println("printing");
+    };
+}
+
+loop(5) {
+    printstring(10, 10);
+}
+
+compare(10, 0)
+.== {
+    println("equals");
+}
+.!= {
+   println("does not equal");
+};
+
+println("hello");
+term;
+```
