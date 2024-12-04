@@ -16,10 +16,7 @@
 
 Since Byte Lang is in its early stages, the installation process involves cloning the repository and building from source:
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/deadlightreal/byte-lang
-   ```
+1. **Download the compiler from our release page**:
 
 2. **Navigate to the Directory**:
    ```bash
@@ -28,7 +25,7 @@ Since Byte Lang is in its early stages, the installation process involves clonin
 
 3. **Run your first program**:
    ```bash
-   cargo run (command)
+   ./byte=lang (command)
    ```
 
 ### Commands
