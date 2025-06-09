@@ -25,7 +25,7 @@ Since Byte Lang is in its early stages, the installation process involves clonin
 
 3. **Run your first program**:
    ```bash
-   ./byte=lang (command)
+   ./byte-lang (command)
    ```
 
 ### Commands
