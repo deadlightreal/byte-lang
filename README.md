@@ -44,17 +44,17 @@ fn printstring() {
 }
 
 loop(5) {
-    printstring(10, 10);
+    printstring();
 }
 
-compare(10, 0)
+compare(10, test_var_2)
 .== {
-    println("equals");
+    println("equal");
 }
 .!= {
-   println("does not equal");
+    println("not equal");
 };
 
-println("hello");
+println("hello world");
 term;
 ```
