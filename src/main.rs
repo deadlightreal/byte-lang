@@ -1,15 +1,13 @@
-use std::collections::HashMap;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::process::Command;
 use std::{fs::File, io::Read};
-use unzip::Unzipper;
 
 mod compile_asm;
-mod datatypes;
+mod tokenizer;
 
+use tokenizer::tokenizer::Tokenizer;
 use compile_asm::compile_asm;
-use datatypes::parser::{parse_code};
 
 fn main() {
     let start = std::time::Instant::now();
@@ -74,17 +72,15 @@ _start:
     )
     .expect("Error Writing File");
 
-    let parsed_text = parse_code(
-        &content as &str,
-    );
+    let tokenizer : Tokenizer = Tokenizer::new(&content);
 
-    match parsed_text {
+    /*match parsed_text {
         Ok(text) => write!(writer, "{}", text).expect("error writing to a file"),
         Err(err) => {
             println!("{}", err);
             return;
         }
-    }
+    }*/
        
     // Save the file with new content.
     writer.flush().expect("Err Flushing To File");
