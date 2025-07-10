@@ -9,8 +9,7 @@ mod compile_asm;
 mod datatypes;
 
 use compile_asm::compile_asm;
-use datatypes::parser::{get_offset, parse_code};
-use datatypes::{FunctionStruct, ArgType, StackItem, LoopStruct, VariableType, StackFrame, DataBoolean, DataNumber};
+use datatypes::parser::{parse_code};
 
 fn main() {
     let start = std::time::Instant::now();
@@ -23,144 +22,15 @@ fn main() {
         "build" => {
             build_file();            
         },
-        "init" => {
-            init_command();
-        },
-        "install" => {
-            install_dependency();
-        },
         _ => {}
     };
 
     println!("{:?}", start.elapsed());
 }
 
-fn install_dependency() {
-    let dependency_name = std::env::args().nth(2).unwrap();
-    let project_dir = get_project_folder().unwrap();
-    let dependencies_dir = project_dir.join("dependencies");
-
-    let version : String = match std::env::args().nth(3) {
-        Some(version) => version,
-        None => String::new()
-    };
-
-    let response = reqwest::blocking::get(format!("http://localhost:8080/installPackage?package={}&version={}", dependency_name, version)).unwrap();
-
-    match response.status().as_u16() {
-        200 => {
-            let before_items = std::fs::read_dir(dependencies_dir.clone()).unwrap();
-
-            let mut items_hashmap : HashMap<String, u8> = HashMap::new();
-
-            for item in before_items {
-                items_hashmap.insert(item.unwrap().path().to_str().unwrap().to_string(), 0);
-            }
-
-            let mut dependency_dir = dependencies_dir.clone();
-            dependency_dir.push(format!("{}.zip", dependency_name));
-
-            let mut dest = File::create(dependency_dir.clone()).unwrap();
-
-            let content = response.bytes().unwrap();
-
-            std::io::copy(&mut content.as_ref(), &mut dest).unwrap();
-
-            let file = File::open(dependency_dir.clone()).unwrap();
-
-            Unzipper::new(file, &dependencies_dir.as_path()).unzip().unwrap();
-
-            std::fs::remove_file(dependency_dir.clone()).unwrap();
-
-            let after_items = std::fs::read_dir(dependencies_dir.clone()).unwrap();
-
-            for item in after_items {
-                let dir : String = item.unwrap().path().to_str().unwrap().to_string();
-                let map_item = items_hashmap.get(&dir);
-                match map_item {
-                    Some(_) => {},
-                    None => {
-                        let new_dir = dependencies_dir.clone().join(dependency_name.clone());
-                        std::fs::rename(dir, new_dir).unwrap();
-                    }
-                };
-            }
-        },
-        409 => {
-            println!("Error: {}", response.text().unwrap());
-        },
-        _ => {
-
-        }
-    }
-
-    
-}
-
-fn get_project_folder() -> Result<PathBuf, String> {
-    let mut dir = std::env::current_dir().unwrap();
-
-    loop {
-        let config_file = dir.join("byte-config.json");
-        if config_file.exists() {
-            return Ok(dir);
-        } else {
-            if let Some(dir_parent) = dir.parent() {
-                dir = dir_parent.to_path_buf();
-            } else {
-                return Err(String::from("byte-lang dir not found!!"))
-            }
-        }
-    }
-}
-
 fn build_file() {
     compile_file();
     println!("App Compiled \n \n \n--------------------------------------------------------------\n \n \n")
-}
-
-fn init_command() {
-    let project_name = std::env::args().nth(2).expect("Please provide project name");
-
-    let dir = format!("{}/{}", std::env::current_dir().unwrap().to_str().unwrap(), project_name);
-
-    Command::new("mkdir")
-        .arg(dir.clone())
-        .status()
-        .unwrap();
-
-    Command::new("mkdir")
-        .arg(format!("{}/dependencies", dir.clone()))
-        .status()
-        .unwrap();
-
-    let project_config_location = format!("{}/byte-config.json", dir);
-
-    let project_config_file = File::create(project_config_location).unwrap();
-
-    let mut config_writer = BufWriter::new(project_config_file);
-
-    write!(config_writer,
-r#"{{
-    "name": "{}",
-    "root": "main.byte"
-}}
-"#, project_name).unwrap();
-
-    let main_file = File::create(format!("{}/main.byte", dir)).unwrap();
-
-    let mut main_file_writer = BufWriter::new(main_file);
-
-    write!(main_file_writer,
-r#"\\
-Root file
-\\
-
-term;"#).unwrap();
-
-    main_file_writer.flush().unwrap();
-
-    config_writer.flush().unwrap();
 }
 
 fn compile_file() {
@@ -181,9 +51,9 @@ fn compile_file() {
     let current_dir = std::env::current_dir().expect("Error getting current Path");
 
     // Create a file that will contain output assembly code.
-    let mut new_file_location = PathBuf::from(current_dir.clone());
+    let mut new_file_location = PathBuf::from(&current_dir);
     new_file_location.push("output.s");
-    let created_file = File::create(new_file_location.clone()).expect("Error creating File");
+    let created_file = File::create(&new_file_location).expect("Error creating File");
 
     // Create a writer for assembly code.
     let mut writer = BufWriter::new(created_file);

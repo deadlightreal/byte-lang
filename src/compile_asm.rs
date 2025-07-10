@@ -4,22 +4,22 @@ use std::fs;
 
 pub fn compile_asm(current_dir : PathBuf) {
     // Create paths of output assembly file, output file and final output file.
-    let mut assembly_file = PathBuf::from(current_dir.clone());
+    let mut assembly_file = PathBuf::from(&current_dir);
     assembly_file.push("output.s");
 
-    let mut output_file = PathBuf::from(current_dir.clone());
+    let mut output_file = PathBuf::from(&current_dir);
     output_file.push("output.o");
 
-    let mut final_file = PathBuf::from(current_dir.clone());
+    let mut final_file = PathBuf::from(&current_dir);
     final_file.push("output");
 
-    let mut new_file_location = PathBuf::from(current_dir);
+    let mut new_file_location = PathBuf::from(&current_dir);
     new_file_location.push("output.s");
 
     // Execute the compiling commands
     let status = Command::new("as")
                         .arg("-o")
-                        .arg(output_file.clone())
+                        .arg(&output_file)
                         .arg(new_file_location)
                         .status()
                         .expect("Failed to execute command");
@@ -44,7 +44,7 @@ pub fn compile_asm(current_dir : PathBuf) {
 
     let status = Command::new("ld")
         .arg("-macos_version_min")
-        .arg("11.0.0")
+        .arg("14.0.0")
         .arg("-o")
         .arg("output")
         .arg("output.o")
